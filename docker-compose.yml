@@ -1,0 +1,17 @@
+version: "3"
+services:
+  lab:
+    #image: jupyter_projname:v01 
+    container_name: polio_ES
+    build:
+        context: .
+        dockerfile: ./Dockerfile
+
+    ports:
+      - "8888:8888" 
+
+    volumes:
+      - .:/workdir
+    environment:
+      - JULIA_NUM_THREADS=12
+    command: start.sh jupyter lab
