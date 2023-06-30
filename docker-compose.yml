@@ -14,4 +14,5 @@ services:
       - .:/workdir
     environment:
       - JULIA_NUM_THREADS=12
+      - RASTERDATASOURCES_PATH=/workdir/dt_raster
     command: start.sh jupyter lab

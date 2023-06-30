@@ -6,7 +6,7 @@ using StatsBase
 
 include("util.jl")
 
-struct SEIRModelParams
+struct SEIRMetaModelParams
     R0::Float64 
     γ1::Float64 
     γ2::Float64
@@ -16,47 +16,56 @@ struct SEIRModelParams
     P_AFP_sample::Float64 
     P_AFP_test::Float64 
     P_ES_test::Float64
-    N0::Int64
+    N0::Vector{Int64}
     I0_init::Int64 
+    I0_ind::Int64
     λ0::Float64 
     days::Int64
     ES_n_freq::Int64
+    n_site::Int64
+    ES_area::Vector{Bool}
+    α::Float64
+    π_mat::Matrix{Float64}
     β::Float64
-    function SEIRModelParams(;
+    function SEIRMetaModelParams(;
             R0=10.0, γ1=1/4.0, γ2=1/15.02, γ3=1/7.0,
             P_AFP=1/200, P_H=0.9, 
             P_AFP_sample=0.8, P_AFP_test=0.97, P_ES_test=0.97,
-            N0=10000, I0_init=1, λ0=0.5, 
-            ES_n_freq=30, days=365
+            N0=[1], I0_init=1, I0_ind=1, λ0=0.5, 
+            days=365, ES_n_freq=30, n_site=1, ES_area=[1],
+            α=0.05, π_mat=fill(0,1,1)
         )
         new(R0, γ1, γ2, γ3, P_AFP, P_H, 
             P_AFP_sample, P_AFP_test, P_ES_test,
-            N0, I0_init, λ0, days, ES_n_freq, R0*γ2
+            N0, I0_init, I0_ind, 
+            λ0, days, ES_n_freq, n_site, ES_area, 
+            α, π_mat, R0*γ2
             )
     end
 end
 
-@proto struct SEIRModelRecord
+@proto struct SEIRMetaModelRecord
     days::Int64
-    S::Array{Int64, 1} = fill(-999, days)
-    E::Array{Int64, 1} = fill(-999, days)
-    Ia::Array{Int64, 1} = fill(-999, days)
-    I_AFP::Array{Int64, 1} = fill(-999, days)
-    R::Array{Int64, 1} = fill(-999, days)
+    n_site::Int64
+    S::Array{Int64, 2} = fill(-999, n_site, days)
+    E::Array{Int64, 2} = fill(-999, n_site, days)
+    Ia::Array{Int64, 2} = fill(-999, n_site, days)
+    I_AFP::Array{Int64, 2} = fill(-999, n_site, days)
+    R::Array{Int64, 2} = fill(-999, n_site, days)
 end
 
-@proto struct SEIRModelOneStep
-    S::Int64
-    E::Int64
-    Ia::Int64
-    I_AFP::Int64
-    R::Int64
-    H_AFP::Int64
+@proto struct SEIRMetaModelOneStep
+    S::Vector{Int64}
+    E::Vector{Int64}
+    Ia::Vector{Int64}
+    I_AFP::Vector{Int64}
+    R::Vector{Int64}
+    H_AFP::Vector{Int64}
 end
 
 function set_values!(
-        rec::SEIRModelRecord, 
-        model::SEIRModelOneStep, 
+        rec::SEIRMetaModelRecord, 
+        model::SEIRMetaModelOneStep, 
         ind::Int64
     )
     @unpack S, E, Ia, I_AFP, R = model
@@ -67,31 +76,37 @@ function set_values!(
     rec.R[ind] = R
 end
 
-function initialize_model(params::SEIRModelParams, rec_flag::Bool)
-    @unpack N0, I0_init, days = params
-    model = SEIRModelOneStep(
+function initialize_model(params::SEIRMetaModelParams, rec_flag::Bool)
+    @unpack N0, I0_init, I0_ind, n_site, days = params
+    S = copy(N0)
+    S[I0_ind] -= I0_init
+    Ia = fill(0, n_site)
+    Ia[I0_ind] -= I0_init
+
+    model = SEIRMetaModelOneStep(
         S = N0 - I0_init,
-        E = 0,
-        Ia = I0_init,
-        I_AFP = 0,
-        R = 0,
-        H_AFP = 0,  # Newly seeking
+        E = fill(0, n_site),
+        Ia = Ia,
+        I_AFP = fill(0, n_site),
+        R = fill(0, n_site),
+        H_AFP = fill(0, n_site),  # Newly seeking
     )
 
     if rec_flag == true
-        rec = SEIRModelRecord(days=days)
+        rec = SEIRMetaModelRecord(days=days, n_site=n_site)
         set_values!(rec, model, 1)
     else
-        rec = SEIRModelRecord(days=1)
+        # Empty record
+        rec = SEIRMetaModelRecord(days=1, n_site=1)
     end
 
     return rec, model
 end
 
 function update_model(
-        model::SEIRModelOneStep, 
-        params::SEIRModelParams
-    )::SEIRModelOneStep
+        model::SEIRMetaModelOneStep, 
+        params::SEIRMetaModelParams
+    )::SEIRMetaModelOneStep
 
     @unpack γ1, γ2, γ3, P_AFP, days, β, N0 = params
     @unpack S, E, Ia, I_AFP, R = model
@@ -110,14 +125,14 @@ function update_model(
     Ia +=          + rec_E_Ia    - rec_Ia
     I_AFP +=       + rec_E_I_AFP - rec_I_AFP
     R +=                         + rec_Ia + rec_I_AFP
-    model = SEIRModelOneStep(
+    model = SEIRMetaModelOneStep(
         S=S, E=E, Ia=Ia, I_AFP=I_AFP,R=R, 
         H_AFP=rec_I_AFP
     )
     return model
 end
 
-function run_sim(params::SEIRModelParams; rec_flag::Bool=false)
+function run_sim(params::SEIRMetaModelParams; rec_flag::Bool=false)
     @unpack γ1, γ2, γ3, P_AFP, P_H, P_AFP_sample, 
             P_AFP_test, P_ES_test, days, ES_n_freq, λ0 = params
 
@@ -126,7 +141,6 @@ function run_sim(params::SEIRModelParams; rec_flag::Bool=false)
     nt = [0 for _ in 1:days]
     st_ind = rand(1:ES_n_freq)
     nt[st_ind:30:days] .= 1
-
 
     t_extinct = NaN
     t_AFP = NaN
@@ -137,7 +151,7 @@ function run_sim(params::SEIRModelParams; rec_flag::Bool=false)
         # Stop condition
         if (model.E + model.Ia + model.I_AFP) == 0
             t_extinct = isnan(t_extinct) == true ? t : t_extinct
-            R_final = model.R
+            R_final = sum(model.R)
             if rec_flag == true
                 set_values!(rec, model, t)
                 continue
@@ -153,9 +167,9 @@ function run_sim(params::SEIRModelParams; rec_flag::Bool=false)
 
         # ES surveillance
         if isnan(t_ES) == true
-            ωt = 1 - exp(-λ0 * (model.Ia + model.I_AFP))
-            wt = rand_binom(nt[t], ωt*P_ES_test)
-            t_ES = wt == 1 ? t : t_ES
+            ωt = 1 .- exp.(-λ0 .* (model.Ia .+ model.I_AFP))
+            wt = rand_binom.(nt[t], ωt.*P_ES_test)
+            t_ES = sum(wt) == 1 ? t : t_ES
         end
         # AFP surveillance
         if isnan(t_AFP) == true

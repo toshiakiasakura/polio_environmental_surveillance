@@ -6,8 +6,12 @@
 tmp/
 tmp_results/
 tmp_fix_results/
+*.tif
+dt_tmp/
+dt_tmp_fix/
 doc_MSc_thesis_samples/
 doc_official/
+dt_raster/
 
 .DS_Store
 
