@@ -10,3 +10,5 @@ RUN julia -e 'using Pkg; Pkg.activate(".")'
 COPY ./Manifest.toml Manifest.toml
 COPY ./Project.toml Project.toml
 RUN julia -e 'using Pkg; Pkg.instantiate()'
+
+RUN pip install jupytext
