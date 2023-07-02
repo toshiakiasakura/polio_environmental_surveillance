@@ -94,6 +94,22 @@ I = 1:100
 ωt = 1 .- exp.(-λ0.*I)
 plot(I, ωt, ylim=[0,1.0])
 
+# # Hazard and Parameter setting relationships 
 
+p = 0.1:0.1:0.9
+λ0_s = -log.(1 .- p)/1
+plot(p, λ0_s, 
+    xlabel="Probability of detection (ωt) given one infectious individual", 
+    ylabel="g",
+    fmt=:png,
+)
+
+N0_λ = 1:50
+λ0_s = -log.(1 - 0.9)./N0_λ
+plot(N0_λ, λ0_s, 
+    xlabel="Population at which the probability of ES detection becomes 0.9", 
+    ylabel="g",
+    fmt=:png,
+)
 
 
