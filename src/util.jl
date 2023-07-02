@@ -7,6 +7,13 @@ using ProgressMeter
 using Rasters
 using StatsPlots
 
+function rand_binom(n, p)::Float64
+    if (n == 0) | (p == 0)
+        return 0.0
+    else
+        return rand(Binomial(n,p))
+    end
+end
 rand_binom(n,p)::Float64 = n == 0 ? 0.0 : rand(Binomial(n,p))
 get_today_time() = @pipe now() |> Dates.format(_, "yyyymmdd_HHMMSS")
 
@@ -101,13 +108,15 @@ function conditional_cumulative_prob(ts::Vector, t_extinct::Vector, days)
     return cum[1, :]
 end
 
-function vis_cumulative_prob(df::DataFrame, days::Int64)
+function vis_cumulative_prob(df::DataFrame, days::Int64; kwargs...)
     ts_ES = df[:, "t_ES"]
     ts_AFP = df[:, "t_AFP"]
     t_extinct = df[:, "t_extinct"]
     cum_ES = cumulative_counts(ts_ES, days; prop=true)
     cum_AFP = cumulative_counts(ts_AFP, days; prop=true)
-    pl = plot()
+    pl = plot(ylabel="Probability", xlabel="Days";
+        kwargs...
+    )
     plot!(pl, 1:pars.days, cum_ES, label="ES", fmt=:png)
     plot!(pl, 1:pars.days, cum_AFP, label="AFP")
 

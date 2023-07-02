@@ -38,14 +38,15 @@ mutable struct SEIRMetaModelParams
 end
 
 mutable struct ESParams
-    λ0::Float64
+    g::Float64
     P_test::Float64
     area::Vector{Bool}
     n_freq::Int64
-    function ESParams(;λ0=0.5, P_ES_test=0.97, area=[1], n_freq=30)
-        new(λ0, P_ES_test, area, n_freq)
+    function ESParams(;g=0.5, P_test=0.97, area=[1], n_freq=30)
+        new(g, P_test, area, n_freq)
     end
 end
+Base.copy(x::ESParams) = ESParams(g=x.g, P_test=x.P_test, area=x.area, n_freq=x.n_freq)
 
 mutable struct AFPSurParams
     P_test::Float64
@@ -176,10 +177,12 @@ function run_sim(pars::SEIRMetaModelParams; rec_flag::Bool=false)
     end
     R_final_num = sum(model.R)
     R_final_site = sum(model.R .> 0)
+    R_final_AFP = sum(rec.H_AFP)
     outcome = (
-        t_extinct=t_extinct, 
+        t_extinct=Float64(t_extinct), 
         R_final_num=R_final_num, 
         R_final_site=R_final_site,
+        R_final_AFP=R_final_AFP,
     )
     return (rec=rec, outcome=outcome, pars=pars)
 end
@@ -200,7 +203,7 @@ function AFP_surveillance(rec::SEIRMetaModelRecord, pars::AFPSurParams)::Float64
 end
 
 function enviro_surveillance(rec::SEIRMetaModelRecord, pars::ESParams)::Float64
-    @unpack λ0, P_test, area, n_freq = pars
+    @unpack g, P_test, area, n_freq = pars
     n_site, days = size(rec.Ia)
     
     # TODO: synchronize sampling time?
@@ -211,7 +214,10 @@ function enviro_surveillance(rec::SEIRMetaModelRecord, pars::ESParams)::Float64
     
     t_ES = NaN
     for t in sample_ind
-        ωt = 1 .- exp.( -λ0 .* (rec.Ia[:, t] .+ rec.I_AFP[:, t]))
+        if nt[1, t] == 0
+            continue
+        end
+        ωt = 1 .- exp.( -g .* (rec.Ia[:, t] .+ rec.I_AFP[:, t]))
         wt = rand_binom.(nt[:,t], ωt .* P_test)
         if sum(wt) > 0
             t_ES = t
@@ -224,8 +230,8 @@ end
 function heatmap_meta_pop(I::Matrix{Int64})
     n_site, days = size(I)
     pl = plot(xlabel="Days", ylabel="Location")
-    heatmap!(pl, 1:days, 1:n_site, log10.(rec.Ia .+1) ) 
-    display(pl)
+    heatmap!(pl, 1:days, 1:n_site, log10.(I .+1) ) 
+    return pl
 end
 
 function run_and_save_sim(pars::SEIRMetaModelParams, ; n_sim=10)
@@ -238,7 +244,6 @@ function run_and_save_sim(pars::SEIRMetaModelParams, ; n_sim=10)
         serialize("$(path)/$(i).ser", res)
     end
 end
-
 
 function fetch_sim_paths(path::String) 
     return glob("$(path)/*.ser")
@@ -253,50 +258,141 @@ function collect_summary_statistics(
     @showprogress for i in 1:n
         res = deserialize(path_objs[i])
         rec, outcome, pars = res
-        R_final_AFP = sum(rec.H_AFP)
         t_AFP = AFP_surveillance(rec, par_AFP)
         t_ES = enviro_surveillance(rec, par_ES)
         res_t = (
-            t_extinct=outcome.t_extinct, 
-            R_final_num=outcome.R_final_num,
-            R_final_site=outcome.R_final_site,
-            R_final_AFP=R_final_AFP,
             t_AFP=t_AFP,
             t_ES=t_ES,
+            outcome...
         )
         push!(sim_res,res_t)
     end
     return sim_res
 end
 
-function sensitivity_catchment_area(
+"""
+    sensitivity_ana_ES
+
+Adaptor for sensitivity analysis.
+
+# Arguments
+- `f`:: Inside function, the sensitivity analysis setting is determined.
+    and results are added to sim_res
+"""
+function sensitivity_ana_ES(
         path::String, par_AFP::AFPSurParams, par_ES::ESParams,
+        f::Function
     )
     path_objs = fetch_sim_paths(path)
     n_sim = length(path_objs)
     sim_res = DataFrame()
+    par_ES = copy(par_ES)
     @showprogress for i in 1:n_sim
         res = deserialize(path_objs[i])
-        rec, outcome, pars = res
-        R_final_AFP = sum(rec.H_AFP)
-        t_AFP = AFP_surveillance(rec, par_AFP)
-        
-        for ind_site in 1:pars.n_site
-            area = fill(0, n_site)
-            area[1:ind_site] .= 1
-            par_ES.area = area
-            t_ES = enviro_surveillance(rec, par_ES)
-            res_t = (
-                t_extinct=outcome.t_extinct, 
-                R_final_num=outcome.R_final_num,
-                R_final_site=outcome.R_final_site,
-                R_final_AFP=R_final_AFP,
-                t_AFP=t_AFP,
-                t_ES=t_ES,
-                ind_site=ind_site,
-            )
-            push!(sim_res ,res_t)
-        end
+        sim_res = f(res, par_AFP, par_ES, sim_res)
+    end
+    return sim_res
+end
+
+function sensitivity_ana_all(
+        path::String, par_AFP::AFPSurParams, par_ES::ESParams,
+    )
+    path_objs = fetch_sim_paths(path)
+    n_sim = length(path_objs)
+    sim_res1 = DataFrame()
+    sim_res2 = DataFrame()
+    sim_res3 = DataFrame()
+    @showprogress for i in 1:n_sim
+        res = deserialize(path_objs[i])
+        par_ES_tmp = copy(par_ES)
+        sim_res1 = sensitivity_hazard(
+            res, par_AFP, par_ES_tmp, sim_res1)
+
+        par_ES_tmp = copy(par_ES)
+        sim_res2 = sensitivity_frequency_sampling(
+            res, par_AFP, par_ES_tmp, sim_res2)
+
+        par_ES_tmp = copy(par_ES)
+        sim_res3 = sensitivity_ES_catchment_area(
+            res, par_AFP, par_ES_tmp, sim_res3)
+    end
+    return (sim_res1, sim_res2, sim_res3)
+end
+
+"""Function for `sensitivity_ana_ES`
+"""
+function sensitivity_ES_catchment_area(
+        res::NamedTuple, par_AFP::AFPSurParams,
+        par_ES::ESParams, sim_res::DataFrame,
+    )
+    rec, outcome, pars = res
+    t_AFP = AFP_surveillance(rec, par_AFP)
+
+    for ind_site in 1:pars.n_site
+        area = fill(0, n_site)
+        area[1:ind_site] .= 1
+        par_ES.area = area
+        t_ES = enviro_surveillance(rec, par_ES)
+        res_t = (
+            t_AFP=t_AFP,
+            t_ES=t_ES,
+            ind_site=ind_site,
+            outcome...
+        )
+        push!(sim_res, res_t)
+    end
+    return sim_res
+end
+
+"""Function for `sensitivity_ana_ES`
+"""
+function sensitivity_hazard(
+        res::NamedTuple, par_AFP::AFPSurParams,
+        par_ES::ESParams, sim_res::DataFrame,
+    )
+    rec, outcome, pars = res
+    t_AFP = AFP_surveillance(rec, par_AFP)
+    pop90_list = [
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 
+        20, 30, 40, 50, 60, 70, 80, 90, 100, 
+        200, 300, 400, 500, 600, 700, 800, 900, 1000
+    ]
+    for pop90 in pop90_list
+        par_ES.g = - log(1 - 0.9)/pop90
+        t_ES = enviro_surveillance(rec, par_ES)
+        res_t = (
+            t_AFP=t_AFP,
+            t_ES=t_ES,
+            pop90=pop90,
+            g=par_ES.g,
+            outcome...
+        )
+        push!(sim_res, res_t)
+    end
+    return sim_res
+end
+
+"""Function for `sensitivity_ana_ES`
+"""
+function sensitivity_frequency_sampling(
+        res::NamedTuple, par_AFP::AFPSurParams,
+        par_ES::ESParams, sim_res::DataFrame,
+    )
+    rec, outcome, pars = res
+    t_AFP = AFP_surveillance(rec, par_AFP)
+    freq_list = [
+        7, 14, 21, 28, 30, 35, 42, 49, 56, 63, 70, 77, 84, 91
+    ]
+    for n_freq in freq_list
+        par_ES.n_freq = n_freq
+        t_ES = enviro_surveillance(rec, par_ES)
+        res_t = (
+            t_AFP=t_AFP,
+            t_ES=t_ES,
+            n_freq=n_freq,
+            outcome...
+        )
+        push!(sim_res, res_t)
     end
     return sim_res
 end
@@ -308,16 +404,20 @@ function detection_pattern_sensitivity(df_res::DataFrame, col)::DataFrame
     return tab
 end
 
-function vis_detection_pattern(tab::DataFrame, n_sim::Int64, col)
+function vis_detection_pattern(
+        tab::DataFrame, n_sim::Int64, col::Union{String, Symbol};
+        kwargs...
+    )
     pl = plot(
         xlabel=col, 
         ylabel="Probability (%)",
-        title="Prop. of polio detection (# of sim = $n_sim)",
-        legend=(0.5,0.5), fmt=:png,
+        title="Prop. of polio detection (# of sim = $n_sim)", 
+        fmt=:png;
+        kwargs...
     )
     x = tab[:, col]
     plot!(pl, x, tab[:, "Detect"]./n_sim*100, 
-    label="Detect by AFP or ES", marker=:circle, markersize=1)
+        label="Detect by AFP or ES", marker=:circle, markersize=1)
     plot!(pl, x, tab[:, "Both"]./n_sim*100, label="Both")
     plot!(pl, x, tab[:, "ES only"]./n_sim*100, label="ES only detect")
     plot!(pl, x, tab[:, "AFP only"]./n_sim*100, label="AFP only detect")
@@ -329,20 +429,23 @@ function leadtime_diff_sensitivity(df_res::DataFrame, col)::DataFrame
     cond = isnan.(df_res[:, "diff"]) .== false
     df_fil = df_res[cond, :]
     df_diff = DataFrame()
-    for ind_site in unique(df_res[:, :ind_site])
-        dfM = filter(x -> x[:ind_site] == ind_site, df_fil )
+    for uni in unique(df_res[:, col])
+        dfM = filter(x -> x[col] == uni, df_fil)
         qs = quantile_tuple(dfM[:, :diff])
-        qs_new = (qs..., ind_site=ind_site)
+        qs_new = (qs..., uni=uni)
         push!(df_diff, qs_new)
     end
+    rename!(df_diff, :uni => col)
     return df_diff
 end
 
-function vis_leadtime_diff_sensitivity(df_diff::DataFrame, col)
+function vis_leadtime_diff_sensitivity(df_diff::DataFrame, col; kwargs...)
     x = df_diff[:, col]
     pl = plot(
-        title="Leadtime of ES detection", xlabel=col, ylabel="Lead time (day)",
-        fmt=:png,
+        title="Leadtime of ES detection", 
+        xlabel=col, ylabel="Lead time (day)", 
+        fmt=:png; 
+        kwargs...
     )
     plot!(pl, x, df_diff[:, :q05], label="5th")
     plot!(pl, x, df_diff[:, :q25], label="25th")

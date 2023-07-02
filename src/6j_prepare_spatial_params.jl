@@ -53,7 +53,14 @@ plot(zaf_5_agg)
 
 path = "../data/zaf_5_agg1000_2020.tif"
 zaf_5 = read(Raster(path))
-plot(zaf_5)
+plot(zaf_5, fmt=:png)
+
+ras = zaf_5
+lon = lookup(ras, X)
+lat = lookup(ras, Y)
+Δlat = @pipe harversine_dist(lat[1], lon[1], lat[2], lon[1]) |> round(_; digits=2)
+Δlon = @pipe harversine_dist(lat[1], lon[1], lat[1], lon[2]) |> round(_; digits=2)
+println("Latitude diff: $Δlat km, Longitude diff: $Δlon km")
 
 # +
 df = raster_to_df(zaf_5)
@@ -109,7 +116,7 @@ end
 nothing
 # -
 
-ind = 1
+ind = 3
 scatter(df[:, :lon], df[:, :lat], 
     markersize=π_mat[ind, :]*100, 
     xlabel="Longitude", ylabel="Latitude",
