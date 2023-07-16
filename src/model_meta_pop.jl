@@ -12,27 +12,29 @@ mutable struct SEIRMetaModelParams
     R0::Float64 
     γ1::Float64 
     γ2::Float64
-    γ3::Float64 
+    σ::Float64 
     P_AFP::Float64 
-    N0::Vector{Int64}
+    N_tot::Vector{Int64}
+    N_unvac::Vector{Int64}
     I0_init::Int64 
     I0_ind::Int64
     days::Int64
     n_site::Int64
     α::Float64
     π_mat::Matrix{Float64}
+    μ::Float64
     β::Float64
     function SEIRMetaModelParams(;
-            R0=10.0, γ1=1/4.0, γ2=1/15.02, γ3=1/7.0,
+            R0=10.0, γ1=1/4.0, γ2=1/15.02, σ=0.3291,
             P_AFP=1/200, 
-            N0=[1], I0_init=1, I0_ind=1,
+            N_tot=[1], N_unvac=[1], I0_init=1, I0_ind=1,
             days=365, n_site=1,
-            α=0.05, π_mat=fill(0,1,1)
+            α=0.05, π_mat=fill(0,1,1), μ=1/(5*365),
         )
-        new(R0, γ1, γ2, γ3, P_AFP,
-            N0, I0_init, I0_ind, 
+        new(R0, γ1, γ2, σ, P_AFP,
+            N_tot, N_unvac, I0_init, I0_ind, 
             days, n_site,
-            α, π_mat, R0*γ2
+            α, π_mat, μ, R0*γ2
             )
     end
 end
@@ -42,7 +44,7 @@ mutable struct ESParams
     P_test::Float64
     area::Vector{Bool}
     n_freq::Int64
-    function ESParams(;g=0.5, P_test=0.97, area=[1], n_freq=30)
+    function ESParams(;g=0.23, P_test=0.97, area=[1], n_freq=30)
         new(g, P_test, area, n_freq)
     end
 end
@@ -60,10 +62,10 @@ end
 @proto struct SEIRMetaModelOneStep
     S::Vector{Int64}
     E::Vector{Int64}
-    Ia::Vector{Int64}
-    I_AFP::Vector{Int64}
+    I::Vector{Int64}
     R::Vector{Int64}
-    H_AFP::Vector{Int64}
+    A::Array{Int64, 2}
+    Z_A5_6::Vector{Int64}
 end
 
 @proto struct SEIRMetaModelRecord
@@ -71,10 +73,9 @@ end
     n_site::Int64
     #S::Array{Int64, 2} = fill(-999, n_site, days)
     #E::Array{Int64, 2} = fill(-999, n_site, days)
-    Ia::Array{Int64, 2} = fill(-999, n_site, days)
-    I_AFP::Array{Int64, 2} = fill(-999, n_site, days)
+    I::Array{Int64, 2} = fill(-999, n_site, days)
     #R::Array{Int64, 2} = fill(-999, n_site, days)
-    H_AFP::Array{Int64, 2} = fill(-999, n_site, days)
+    Z_A5_6::Array{Int64, 2} = fill(-999, n_site, days)
 end
 
 function set_values!(
@@ -82,31 +83,30 @@ function set_values!(
         model::SEIRMetaModelOneStep, 
         ind::Int64
     )
-    @unpack S, E, Ia, I_AFP, R, H_AFP = model
+    @unpack S, E, I, Z_A5_6 = model
     #rec.S[ind] = S
     #rec.E[ind] = E
-    rec.Ia[:, ind] = Ia
-    rec.I_AFP[:, ind] = I_AFP
+    rec.I[:, ind] = I
     #rec.R[ind] = R
-    rec.H_AFP[:, ind] = H_AFP
+    rec.Z_A5_6[:, ind] = Z_A5_6
 end
 
 function initialize_model(params::SEIRMetaModelParams, rec_flag::Bool)
-    @unpack N0, I0_init, n_site, N0, days = params
-    I0_ind = wsample(1:n_site, N0)
+    @unpack I0_init, n_site, N_tot, N_unvac, days = params
+    I0_ind = wsample(1:n_site, N_tot)
 
-    S = copy(N0)
+    S = copy(N_unvac)
     S[I0_ind] -= I0_init
-    Ia = fill(0, n_site)
-    Ia[I0_ind] += I0_init
+    I = fill(0, n_site)
+    I[I0_ind] += I0_init
 
     model = SEIRMetaModelOneStep(
         S = S,
         E = fill(0, n_site),
-        Ia = Ia,
-        I_AFP = fill(0, n_site),
+        I = I,
         R = fill(0, n_site),
-        H_AFP = fill(0, n_site),  # Newly seeking
+        A = fill(0, n_site, 6),
+        Z_A5_6 = fill(0, n_site)
     )
 
     if rec_flag == true
@@ -125,33 +125,48 @@ function update_model(
         params::SEIRMetaModelParams
     )::SEIRMetaModelOneStep
 
-    @unpack γ1, γ2, γ3, P_AFP, days, β, N0, π_mat, α = params
-    @unpack S, E, Ia, I_AFP, R = model
+    @unpack γ1, γ2, σ, μ, P_AFP, days, β, N_tot, N_unvac, π_mat, α = params
+    @unpack S, E, I, R, A = model
 
-    ext = sum(π_mat .* (Ia .+ I_AFP)', dims=2)
-    λ = β./N0.*( (1-α) .* (Ia .+ I_AFP) .+ α.*ext)
-    new_inf = rand_binom.(S, 1 .- exp.(-λ))
-    rec_E = rand_binom.(E, 1 .- exp(-γ1))
-    rec_E_Ia = rand_binom.(rec_E, 1 - P_AFP)
-    rec_E_I_AFP = rec_E .- rec_E_Ia
+    new_born = rand_binom.(N_unvac, μ)
+    ext = sum(π_mat .* I', dims=2)
+    λ = β./N_tot.*( (1-α) .* I .+ α.*ext)
 
-    rec_Ia = rand_binom.(Ia, 1 .- exp(-γ2))
-    rec_I_AFP = rand_binom.(I_AFP, 1 .- exp(-γ3))
+    rem_S = rand_binom.(S, 1 .- exp.(-λ .- μ))
+    new_E = rand_binom.(rem_S, λ./(λ .+ μ))
 
-    S .+= .- new_inf
-    E .+= .+ new_inf .- rec_E
-    Ia .+=           .+ rec_E_Ia    .- rec_Ia
-    I_AFP .+=        .+ rec_E_I_AFP .- rec_I_AFP
-    R .+=                           .+ rec_Ia .+ rec_I_AFP
+    rem_E = rand_binom.(E, 1 .- exp(-γ1 - μ))
+    new_I = rand_binom.(rem_E, γ1/(γ1 + μ))
+
+    rem_I = rand_binom.(I, 1 .- exp(-γ2 - μ))
+    new_R = rand_binom.(rem_I, γ2/(γ2 + μ))
+
+    new_AFP = fill(0, n_site, 6)
+    new_AFP[:, 1] = rand_binom.(new_E, P_AFP)
+    rate = 1 - exp(-σ)
+    for i in 1:5
+        new_AFP[:, i+1] .= rand_binom.(A[:, i], rate)
+    end
+
+    S .+= new_born .- rem_S
+    E .+=          .+ new_E .- rem_E
+    I .+=                   .+ new_I .- rem_I
+    R .+=                            .+ new_R
+
+    for i in 1:5
+        A[:, i] .+= new_AFP[:, i] .- new_AFP[:, i+1]
+    end
+    A[:, 6] .+= new_AFP[:, 6]
+
     model = SEIRMetaModelOneStep(
-        S=S, E=E, Ia=Ia, I_AFP=I_AFP,R=R, 
-        H_AFP=rec_I_AFP
+        S=S, E=E, I=I, R=R, A=A,
+        Z_A5_6 = new_AFP[:, 6],
     )
     return model
 end
 
 function run_sim(pars::SEIRMetaModelParams; rec_flag::Bool=false)
-    @unpack γ1, γ2, γ3, P_AFP, days = pars 
+    @unpack γ1, γ2, σ, P_AFP, days = pars 
 
     rec, model = initialize_model(pars, rec_flag)
 
@@ -161,7 +176,7 @@ function run_sim(pars::SEIRMetaModelParams; rec_flag::Bool=false)
     
     for t in 2:days
         # Stop condition
-        if sum(model.E) + sum(model.Ia) + sum(model.I_AFP) == 0
+        if sum(model.E) + sum(model.I) + sum(model.A[:, 1:5]) == 0
             t_extinct = isnan(t_extinct) == true ? t : t_extinct
             if rec_flag == true
                 set_values!(rec, model, t)
@@ -177,7 +192,7 @@ function run_sim(pars::SEIRMetaModelParams; rec_flag::Bool=false)
     end
     R_final_num = sum(model.R)
     R_final_site = sum(model.R .> 0)
-    R_final_AFP = sum(rec.H_AFP)
+    R_final_AFP = sum(rec.Z_A5_6)
     outcome = (
         t_extinct=Float64(t_extinct), 
         R_final_num=R_final_num, 
@@ -189,7 +204,7 @@ end
 
 function AFP_surveillance(rec::SEIRMetaModelRecord, pars::AFPSurParams)::Float64
     @unpack P_test, P_sample, P_H = pars
-    I_tot = sum(rec.H_AFP, dims=1)[1,: ]
+    I_tot = sum(rec.Z_A5_6, dims=1)[1,: ]
     days = length(I_tot)
     t_AFP = NaN
     for t in 1:days
@@ -204,7 +219,7 @@ end
 
 function enviro_surveillance(rec::SEIRMetaModelRecord, pars::ESParams)::Float64
     @unpack g, P_test, area, n_freq = pars
-    n_site, days = size(rec.Ia)
+    n_site, days = size(rec.I)
     
     # TODO: synchronize sampling time?
     nt = fill(0, n_site, days)
@@ -217,7 +232,7 @@ function enviro_surveillance(rec::SEIRMetaModelRecord, pars::ESParams)::Float64
         if nt[1, t] == 0
             continue
         end
-        ωt = 1 .- exp.( -g .* (rec.Ia[:, t] .+ rec.I_AFP[:, t]))
+        ωt = 1 .- exp.( -g .* rec.I[:, t] )
         wt = rand_binom.(nt[:,t], ωt .* P_test)
         if sum(wt) > 0
             t_ES = t
@@ -243,6 +258,7 @@ function run_and_save_sim(pars::SEIRMetaModelParams, ; n_sim=10)
         res = run_sim(pars; rec_flag=true)
         serialize("$(path)/$(i).ser", res)
     end
+    return path
 end
 
 function fetch_sim_paths(path::String) 
@@ -319,6 +335,24 @@ function sensitivity_ana_all(
     return (sim_res1, sim_res2, sim_res3)
 end
 
+function obtain_ES_sensitivity_index(pop::Vector, inc_prop::Float64)::Vector
+    n_site = length(pop)
+    cum_prop = cumsum(pop/sum(pop))
+    pre_prop = 0
+    index = []
+    for i in 1:n_site
+        if i > 1
+            dif = cum_prop[i] - pre_prop
+            if dif < inc_prop
+                continue
+            end
+        end
+        push!(index, i)
+        pre_prop = cum_prop[i]
+    end
+    return index
+end
+
 """Function for `sensitivity_ana_ES`
 """
 function sensitivity_ES_catchment_area(
@@ -328,7 +362,8 @@ function sensitivity_ES_catchment_area(
     rec, outcome, pars = res
     t_AFP = AFP_surveillance(rec, par_AFP)
 
-    for ind_site in 1:pars.n_site
+    sens_index = obtain_ES_sensitivity_index(res.pars.N_tot, 0.01) # 1% increment.
+    for ind_site in sens_index
         area = fill(0, n_site)
         area[1:ind_site] .= 1
         par_ES.area = area
@@ -417,11 +452,14 @@ function vis_detection_pattern(
     )
     x = tab[:, col]
     plot!(pl, x, tab[:, "Detect"]./n_sim*100, 
-        label="Detect by AFP or ES", marker=:circle, markersize=1)
-    plot!(pl, x, tab[:, "Both"]./n_sim*100, label="Both")
-    plot!(pl, x, tab[:, "ES only"]./n_sim*100, label="ES only detect")
-    plot!(pl, x, tab[:, "AFP only"]./n_sim*100, label="AFP only detect")
-    display(pl)
+        label="AFP surv. or ES", marker=:xcross, markersize=3)
+    plot!(pl, x, tab[:, "Both"]./n_sim*100, label="AFP surv. and ES", 
+        marker=:xcross, markersize=3)
+    plot!(pl, x, tab[:, "ES only"]./n_sim*100, label="ES only",
+        marker=:xcross, markersize=3)
+    plot!(pl, x, tab[:, "AFP only"]./n_sim*100, label="AFP surv. only",
+        marker=:xcross, markersize=3)
+    return pl
 end
 
 function leadtime_diff_sensitivity(df_res::DataFrame, col)::DataFrame
@@ -443,14 +481,82 @@ function vis_leadtime_diff_sensitivity(df_diff::DataFrame, col; kwargs...)
     x = df_diff[:, col]
     pl = plot(
         title="Leadtime of ES detection", 
-        xlabel=col, ylabel="Lead time (day)", 
+        xlabel=col, ylabel="Lead time of ES (day)", 
         fmt=:png; 
         kwargs...
     )
-    plot!(pl, x, df_diff[:, :q05], label="5th")
-    plot!(pl, x, df_diff[:, :q25], label="25th")
-    plot!(pl, x, df_diff[:, :q50], label="50th", marker=:circle, markersize=1)
-    plot!(pl, x, df_diff[:, :q75], label="75th")
-    plot!(pl, x, df_diff[:, :q95], label="95th")
-    display(pl)
+    plot!(pl, x, df_diff[:, :q05], label="5th", 
+        color="blue", alpha=0.50, linestyle=:dot,
+        )
+    plot!(pl, x, df_diff[:, :q25], label="25th", 
+        color="blue", alpha=0.75, linestyle=:dashdot,
+    )
+    plot!(pl, x, df_diff[:, :q50], label="50th", 
+        marker=:xcross, markersize=3, color="blue", alpha=1.0,
+        )
+    plot!(pl, x, df_diff[:, :q75], label="75th", 
+        color="blue", alpha=0.75, linestyle=:dashdot,
+    )
+    plot!(pl, x, df_diff[:, :q95], label="95th", 
+        color="blue", alpha=0.50, linestyle=:dot,
+    )
+    return pl
+end
+
+function vis_ES_sensitivity_res(res_all::Tuple, n_sim::Int64, sp_pars::NamedTuple)
+    df_res1, df_res2, df_res3 = res_all
+
+    # ES population coverage
+    per_pop = cumsum(sp_pars.pop)/sum(sp_pars.pop)*100
+    sens_index = obtain_ES_sensitivity_index(sp_pars.pop, 0.01)
+
+    df_res = df_res3
+    tab = detection_pattern_sensitivity(df_res, :ind_site)
+    tab[:, :per_pop] = per_pop[sens_index]
+    pl1 = vis_detection_pattern(tab, n_sim, :per_pop; 
+        xlabel="Population coverage (%)", title="",
+    )
+
+    df_diff = leadtime_diff_sensitivity(df_res, :ind_site)
+    df_diff[:, :per_pop] = per_pop[sens_index]
+    pl2 = vis_leadtime_diff_sensitivity(df_diff, :per_pop;  
+        xlabel="Population coverage (%)", title="",
+        )
+    # Sampling frequency
+    df_res = df_res2
+    tab = detection_pattern_sensitivity(df_res, :n_freq)
+    pl3 = vis_detection_pattern(
+        tab, n_sim, :n_freq; 
+        xlabel="Sampling frequency (days)",
+        title="",
+        )
+    df_diff = leadtime_diff_sensitivity(df_res, :n_freq)
+    pl4 = vis_leadtime_diff_sensitivity(
+        df_diff, :n_freq; 
+        xlabel="Sampling frequency (days)",
+        title="",
+        )
+
+    # ES sensitivity, g
+    df_res = df_res1
+    tab = detection_pattern_sensitivity(df_res, :pop90)
+    xticks = (1, 3, 10, 30, 100, 300, 1000)
+    xlabel = "ES sensitivity, Np90"
+    pl5 = vis_detection_pattern(
+        tab, n_sim, :pop90; 
+        xscale=:log10, xticks=(xticks, xticks), 
+        xlabel=xlabel, title="",
+    )
+    df_diff = leadtime_diff_sensitivity(df_res, :pop90)
+    pl6 = vis_leadtime_diff_sensitivity(
+        df_diff, :pop90; 
+        xscale=:log10, xticks=(xticks, xticks),
+        xlabel=xlabel, title="",
+    )
+
+    pls = [pl1, pl2, pl3, pl4, pl5, pl6]
+    plot(pls..., fmt=:png, 
+        size=(800, 300*3),  # 400 * 2
+        layout=(3,2),
+        left_margin=5Plots.mm, bottom_margin=5Plots.mm)
 end

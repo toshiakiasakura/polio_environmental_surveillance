@@ -1,10 +1,14 @@
 using Dates
 using Distributions
 using FreqTables
+using GeoDataFrames
 using Interpolations
+using LinearAlgebra
 using Pipe
 using ProgressMeter
 using Rasters
+using Serialization
+using Shapefile
 using StatsPlots
 
 function rand_binom(n, p)::Float64
@@ -152,6 +156,18 @@ function raster_to_df(ras::Raster)::DataFrame
     return df
 end
 
+function add_zaf_borders!(pl)
+    path_shape = "../dt_geoBoundaries-ZAF-ADM2-all/geoBoundaries-ZAF-ADM2.shp"
+    function borders!(p, poly)
+        for i in 1:length(p)
+            plot!(p, poly; subplot=i, fillalpha=0, linewidth=0.6)
+        end
+        return p
+    end
+    shapes = Shapefile.Handle(path_shape)
+    borders!(pl, shapes)
+end
+
 """
     harvesine_dist(ϕ1, λ1, ϕ2, λ2)::Float64
 
@@ -172,6 +188,14 @@ function harversine_dist(ϕ1::Float64, λ1::Float64, ϕ2::Float64, λ2::Float64)
     return d
 end
 
+function get_gridsize(ras::Raster)
+    lon = lookup(ras, X)
+    lat = lookup(ras, Y)
+    Δlat = @pipe harversine_dist(lat[1], lon[1], lat[2], lon[1]) |> round(_; digits=2)
+    Δlon = @pipe harversine_dist(lat[1], lon[1], lat[1], lon[2]) |> round(_; digits=2)
+    println("Latitude diff: $Δlat km, Longitude diff: $Δlon km")
+end
+
 function crosstab(df::DataFrame, row, col)::DataFrame
     tab = freqtable(df, row, col)
     df_tab = DataFrame(tab |> Array, names(tab)[2] .|> string)
@@ -186,3 +210,51 @@ quantile_tuple(x) = (
     q75=quantile(x, 0.75),
     q95=quantile(x, 0.95),
 )
+
+function convert_daily_to_weekly_obs(I_obs::Array{Int64, 2}; index=1)
+    n_point = floor(size(I_obs)[2]/7) |> Int64
+    n_sim = size(I_obs)[1]
+    I_obs7 = fill(0, n_sim, n_point)
+    for i in 1:n_point
+        st = index + (i-1)*7 
+        fin = index - 1 + i*7
+        I_obs7[:, i] = sum(I_obs[:, st:fin], dims=2)
+    end
+    return I_obs7
+end
+
+"""
+
+# Arguments
+- `pop`: Population size vector.
+- `mat`: Matrix of latitude and longitude.
+
+# Returns
+- Matrix: Movement of travellers from columns to rows.
+"""
+function calculate_probability_of_pi(pop::Vector, mat::Matrix)::Matrix
+    n_point = length(pop)
+    d_mat = fill(0., n_point, n_point)
+    for i in 1:n_point, j in 1:n_point
+        ϕ1, λ1 = mat[i, :]
+        ϕ2, λ2 = mat[j, :]
+        d_mat[i,j] = harversine_dist(ϕ1, λ1, ϕ2, λ2)
+    end
+
+    # Calculate sij
+    s_mat = fill(0., n_point, n_point)
+    for i in 1:n_point, j in 1:n_point
+        d_i = d_mat[i, :]
+        cond = d_i .< d_i[j] # exclude the destination area.
+        s_mat[i,j] = sum(pop[cond]) - pop[i]
+    end
+    s_mat[ diagind(s_mat)] .= 0
+
+    # Calculate πij
+    π_mat = fill(0., n_point, n_point)
+    for i in 1:n_point, j in 1:n_point
+        π_mat[i, j] = pop[i]*pop[j]/(pop[i] + s_mat[i,j])/(pop[i] + pop[j] + s_mat[i,j])
+    end
+    π_mat[diagind(π_mat)] .= 0
+    return π_mat
+end

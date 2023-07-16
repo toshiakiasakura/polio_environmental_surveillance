@@ -1,0 +1,53 @@
+map_key,map_key_wiki,Province,District,shapeName,sample_size,OPV0,OPV1,HEXA1,HEXA2,HEXA3,HEXA4
+DC1,1,WC,West Coast,West Coast,74,0.973,0.959,0.973,0.973,0.892,0.824
+DC2,2,WC,Cape Winelands,Cape Winelands,179,0.961,0.944,0.95,0.944,0.939,0.888
+DC3,3,WC,Overberg,Overberg,143,0.972,0.944,0.944,0.944,0.965,0.846
+DC4,4,WC,Eden/Garden Route,Eden,121,0.967,0.884,0.959,0.95,0.909,0.893
+DC5,5,WC,Central Karoo,Central Karoo,33,1,1,1,1,1,0.97
+DC6,6,NC,Namakwa,Namakwa,27,1,0.963,0.963,1,1,0.926
+DC7,7,NC,Pixley ka Seme,Pixley ka Seme,32,0.938,0.875,0.906,0.813,0.781,0.688
+DC8,8,NC,Z F Mgcawu,Z F Mgcawu,61,0.984,0.984,0.967,1,0.967,0.836
+DC9,9,NC,Frances Baard,Frances Baard,200,0.99,0.98,0.99,0.995,0.985,0.905
+DC10,10,EC,Sarah Baartman,Cacadu,348,0.971,0.954,0.96,0.963,0.948,0.876
+DC12,12,EC,Amathole,Amathole,220,0.986,0.964,0.977,0.968,0.95,0.864
+DC13,13,EC,Chris Hani,Chris Hani,79,0.987,0.924,0.924,0.975,0.937,0.873
+DC14,14,EC,Joe Gqabi,Joe Gqabi,110,0.955,0.927,0.927,0.918,0.936,0.818
+DC15,15,EC,O.R.Tambo,O.R.Tambo,372,0.954,0.903,0.866,0.879,0.844,0.763
+DC16,16,FS,Xhariep,Xhariep,81,0.975,0.951,0.963,0.926,0.938,0.765
+DC18,18,FS,Lejweleputswa,Lejweleputswa,285,0.986,0.979,0.993,0.979,0.979,0.874
+DC19,19,FS,Thabo Mofutsanyane,Thabo Mofutsanyane,50,1,0.96,0.98,0.98,0.98,0.86
+DC20,20,FS,Fezile Dabi,Fezile Dabi,128,0.914,0.813,0.82,0.828,0.828,0.82
+DC21,21,KZN,Ugu,Ugu,187,0.973,0.968,0.979,0.984,0.963,0.888
+DC22,22,KZN,Umgungundlovu,Umgungundlovu,60,0.967,0.967,0.933,0.967,0.967,0.833
+DC23,23,KZN,Uthukela,Uthukela,700,0.953,0.937,0.933,0.927,0.927,0.806
+DC24,24,KZN,Umzinyathi,Umzinyathi,205,0.976,0.976,0.971,0.966,0.956,0.839
+DC25,25,KZN,Amajuba,Amajuba,470,0.96,0.953,0.953,0.936,0.938,0.832
+DC26,26,KZN,Zululand,Zululand,399,0.965,0.955,0.95,0.952,0.937,0.779
+DC27,27,KZN,Umkhanyakude,Umkhanyakude,243,0.971,0.955,0.938,0.942,0.938,0.872
+DC28,28,KZN,Uthungulu/King Cetshwayo,Uthungulu,986,0.924,0.923,0.927,0.917,0.913,0.828
+DC29,29,KZN,iLembe,iLembe,359,0.799,0.786,0.769,0.763,0.766,0.724
+DC30,30,MP,Gert Sibande,Gert Sibande,284,0.993,0.982,0.982,0.982,0.979,0.849
+DC31,31,MP,Nkangala,Nkangala,328,0.902,0.875,0.887,0.884,0.869,0.78
+DC32,32,MP,Ehlanzeni,Ehlanzeni,396,0.932,0.929,0.899,0.899,0.896,0.811
+DC33,33,LP,Mopani,Mopani,680,0.935,0.915,0.919,0.921,0.904,0.816
+DC34,34,LP,Vhembe,Vhembe,589,0.93,0.925,0.922,0.919,0.908,0.82
+DC36,35,LP,Capricorn,Capricorn,493,0.874,0.858,0.86,0.866,0.858,0.716
+DC36,36,LP,Waterberg,Waterberg,111,0.964,0.955,0.964,0.946,0.928,0.739
+DC37,37,NW,Bojanala,Bojanala,299,0.943,0.916,0.93,0.913,0.906,0.833
+DC38,38,NW,Ngaka Modiri Molema,Ngaka Modiri Molema,484,0.971,0.967,0.948,0.952,0.932,0.82
+DC39,39,NW,Ruth Segomotsi Mompati,Dr Ruth Segomotsi Mompati,106,0.972,0.972,0.972,0.953,0.953,0.849
+DC40,40,NW,Dr Kenneth Kaunda,Dr Kenneth Kaunda,210,0.957,0.948,0.948,0.933,0.919,0.838
+DC42,42,GP,Sedibeng,Sedibeng,514,0.946,0.926,0.942,0.938,0.93,0.84
+DC43,43,KZN,Sisonke/Harry Gwala,Sisonke,597,0.96,0.951,0.946,0.941,0.945,0.871
+DC44,44,EC,Alfred Nzo,Alfred Nzo,271,0.982,0.959,0.967,0.967,0.956,0.834
+DC45,45,NC,John Taolo Gaetsewe,John Taolo Gaetsewe,5,1,1,1,1,1,1
+DC47,47,LP,Sekhukhune,Sekhukhune,345,0.928,0.896,0.916,0.919,0.907,0.826
+DC48,48,GP,West Rand,West Rand,382,0.974,0.969,0.974,0.961,0.958,0.901
+BUF,B,EC,Buffalo City,Buffalo City,211,0.986,0.953,0.953,0.953,0.948,0.863
+CPT,C,WC,City of Cape Town,City of Cape Town,101,0.97,0.98,0.97,0.97,0.941,0.901
+EKU,Ek,GP,Ekurhuleni,Ekurhuleni,890,0.971,0.961,0.966,0.955,0.949,0.869
+ETH,Et,KZN,eThekwini,eThekwini,887,0.94,0.926,0.924,0.917,0.918,0.838
+JHB,J,GP,City of Johannesburg,City of Johannesburg,1710,0.97,0.964,0.956,0.953,0.948,0.878
+MAN,M,FS,Mangaung,Mangaung,187,0.989,0.979,0.973,0.984,0.979,0.877
+NMA,N,EC,Nelson Mandela Bay,Nelson Mandela Bay,326,0.945,0.933,0.939,0.929,0.92,0.865
+TSH,T,GP,City of Tshwane,City of Tshwane,621,0.989,0.963,0.965,0.953,0.958,0.865
