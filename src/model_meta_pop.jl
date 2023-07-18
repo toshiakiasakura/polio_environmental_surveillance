@@ -503,6 +503,50 @@ function vis_leadtime_diff_sensitivity(df_diff::DataFrame, col; kwargs...)
     return pl
 end
 
+function early_detect_prob_sensitivity(df_res::DataFrame, col)::DataFrame
+    ES_nan = isnan.(df_res[:, "t_ES"])
+    AFP_nan = isnan.(df_res[:, "t_AFP"])
+    df_res[!, "ES_only"] .= (ES_nan .== false) .& AFP_nan
+    df_res[!, "Either"] .= (ES_nan .== false) .| (AFP_nan .== false)
+    df_res[!, "diff"] .= df_res[:, "t_AFP"] .- df_res[:, "t_ES"]
+    df_res[!, "lead_0"] .= (df_res[:, "diff"] .> 0) .| (df_res[:, "ES_only"] == true)
+    df_res[!, "lead_30"] .= (df_res[:, "diff"] .> 30) .| (df_res[:, "ES_only"] == true)
+    df_res[!, "lead_60"] .= (df_res[:, "diff"] .> 60) .| (df_res[:, "ES_only"] == true)
+    
+    df_det = DataFrame()
+    for  uni in unique(df_res[:, col])
+        dfM = filter(x -> x[col] == uni, df_res)
+        detect_prob = mean(dfM[:, "Either"])
+        ES_only = mean(dfM[:, "ES_only"])
+        lead_0 = mean(dfM[!, "lead_0"])
+        lead_30 = mean(dfM[!, "lead_30"])
+        lead_60 = mean(dfM[!, "lead_60"])
+        prob_new = (
+            lead_0=(lead_0 + ES_only)/detect_prob, 
+            lead_30=(lead_30 + ES_only)/detect_prob, 
+            lead_60=(lead_60 + ES_only)/detect_prob, 
+            uni=uni
+            )
+        push!(df_det, prob_new)
+    end
+    rename!(df_det, :uni => col)
+    return df_det
+end
+
+function vis_early_detect_prob(df_det::DataFrame, col; kwargs...)
+    y_max = maximum(df_det[:, "lead_0"])
+    pl = plot(
+        xlabel="Population coverage (%)", ylabel="Probability of \nthe early detection by ES",
+        ylim=[0, y_max], fmt=:png;
+        kwargs...
+        
+    )
+    plot!(pl, df_det[:, col], df_det[:, "lead_0"], label="LT >0 days")
+    plot!(pl, df_det[:, col], df_det[:, "lead_30"], label="LT >30 days")
+    plot!(pl, df_det[:, col], df_det[:, "lead_60"], label="LT >60 days")
+    return pl
+end
+
 function vis_ES_sensitivity_res(res_all::Tuple, n_sim::Int64, sp_pars::NamedTuple)
     df_res1, df_res2, df_res3 = res_all
 
@@ -510,6 +554,7 @@ function vis_ES_sensitivity_res(res_all::Tuple, n_sim::Int64, sp_pars::NamedTupl
     per_pop = cumsum(sp_pars.pop)/sum(sp_pars.pop)*100
     sens_index = obtain_ES_sensitivity_index(sp_pars.pop, 0.01)
 
+    # ES cachment area
     df_res = df_res3
     tab = detection_pattern_sensitivity(df_res, :ind_site)
     tab[:, :per_pop] = per_pop[sens_index]
@@ -522,41 +567,58 @@ function vis_ES_sensitivity_res(res_all::Tuple, n_sim::Int64, sp_pars::NamedTupl
     pl2 = vis_leadtime_diff_sensitivity(df_diff, :per_pop;  
         xlabel="Population coverage (%)", title="",
         )
+        df_det = early_detect_prob_sensitivity(df_res, :ind_site) 
+
+    df_det = early_detect_prob_sensitivity(df_res, :ind_site) 
+    df_det[:, :per_pop] = per_pop[sens_index]
+    pl3 = vis_early_detect_prob(df_det, :per_pop,
+        xlabel="Population coverage (%)", title="",
+    )
+
     # Sampling frequency
     df_res = df_res2
     tab = detection_pattern_sensitivity(df_res, :n_freq)
-    pl3 = vis_detection_pattern(
+    pl4 = vis_detection_pattern(
         tab, n_sim, :n_freq; 
         xlabel="Sampling frequency (days)",
         title="",
         )
     df_diff = leadtime_diff_sensitivity(df_res, :n_freq)
-    pl4 = vis_leadtime_diff_sensitivity(
+    pl5 = vis_leadtime_diff_sensitivity(
         df_diff, :n_freq; 
         xlabel="Sampling frequency (days)",
         title="",
         )
+    df_det = early_detect_prob_sensitivity(df_res, :n_freq) 
+    pl6 = vis_early_detect_prob(df_det, :n_freq,
+        xlabel="Sampling frequency (days)",
+    )
 
     # ES sensitivity, g
     df_res = df_res1
     tab = detection_pattern_sensitivity(df_res, :pop90)
     xticks = (1, 3, 10, 30, 100, 300, 1000)
     xlabel = "ES sensitivity, Np90"
-    pl5 = vis_detection_pattern(
+    pl7 = vis_detection_pattern(
         tab, n_sim, :pop90; 
         xscale=:log10, xticks=(xticks, xticks), 
         xlabel=xlabel, title="",
     )
     df_diff = leadtime_diff_sensitivity(df_res, :pop90)
-    pl6 = vis_leadtime_diff_sensitivity(
+    pl8 = vis_leadtime_diff_sensitivity(
         df_diff, :pop90; 
         xscale=:log10, xticks=(xticks, xticks),
         xlabel=xlabel, title="",
     )
+    df_det = early_detect_prob_sensitivity(df_res, :pop90) 
+    pl9 = vis_early_detect_prob(df_det, :pop90,
+        xscale=:log10, xticks=(xticks, xticks),
+        xlabel=xlabel,
+    )
 
-    pls = [pl1, pl2, pl3, pl4, pl5, pl6]
+    pls = [pl1, pl2, pl3, pl4, pl5, pl6, pl7, pl8, pl9]
     plot(pls..., fmt=:png, 
-        size=(800, 300*3),  # 400 * 2
-        layout=(3,2),
+        size=(1200, 300*3),  # 400 * 2
+        layout=(3,3),
         left_margin=5Plots.mm, bottom_margin=5Plots.mm)
 end

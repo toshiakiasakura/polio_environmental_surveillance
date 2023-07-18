@@ -100,8 +100,8 @@ plot(m_5_zaf)
 
 # #### Edit Point
 
-agg_scale = 230 # Latitude diff: 21.31 km, Longitude diff: 19.74 km
-# agg_scale = 110 # Latitude diff: 10.19 km, Longitude diff: 9.44 km
+# agg_scale = 230 # Latitude diff: 21.31 km, Longitude diff: 19.74 km
+agg_scale = 110 # Latitude diff: 10.19 km, Longitude diff: 9.44 km
 m_5_zaf_agg = Rasters.aggregate(sum, m_5_zaf, agg_scale; skipmissingval=true)
 nothing
 

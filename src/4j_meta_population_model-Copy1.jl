@@ -40,7 +40,7 @@ nothing
 n_site = length(sp_pars.pop)
 
 pars = SEIRMetaModelParams(
-    R0=14.0,
+    R0=13.0,
     N_tot=sp_pars.pop,
     N_unvac=sp_pars.unvac,
     π_mat=sp_pars.π_mat,
@@ -189,10 +189,10 @@ plot!(pl1, 1:days, cum_ES_cond, label="Conditional Prob. via ES", color=1, lines
 plot!(pl1, 1:days, cum_AFP, label="Prob. via AFP surv.", color=2)
 plot!(pl1, 1:days, cum_AFP_cond, label="Conditional Prob. via AFP surv.", color=2, linestyle=:dashdot)
 
-dif = leadtime_diff(df)
-x = [1 for i in 1:length(dif)]
-pl2 = violin(x, dif, xticks=:none, ylabel="Lead time of ES (day)", legend=:none)
-boxplot!(pl2, x, dif, fillalpha=0.75)
+diff = leadtime_diff(df)
+x = [1 for i in 1:length(diff)]
+pl2 = violin(x, diff, xticks=:none, ylabel="Lead time of ES (day)", legend=:none)
+boxplot!(pl2, x, diff, fillalpha=0.75)
 annotate!((0.15, 0.95), "(B)")
 l = @layout [a{0.75w} b]
 pl = plot(pl1, pl2, 
@@ -217,8 +217,8 @@ println("Mean ES: $m_ES days, Mean AFP: $m_AFP days")
 vis_cumulative_prob(df, pars.days; title="sim =$n_sim, R0=$(res.pars.R0)")
 # -
 
-dif = leadtime_diff(df)
-leadtime_diff_statistics(dif)
+diff = leadtime_diff(df)
+leadtime_diff_statistics(diff)
 
 # ## Sensitivity all
 

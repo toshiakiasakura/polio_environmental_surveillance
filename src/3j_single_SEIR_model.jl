@@ -24,7 +24,7 @@ using Optim
 include("model.jl")
 # -
 
-path = "../dt_tmp/spatial_params_agg230.ser"
+path = "../dt_tmp/spatial_params_agg110.ser"
 spatial_p = deserialize(path)
 #spatial_p = (pop=pop, unvac=unvac, π_mat=π_mat, df=df_mer)
 @unpack pop, unvac, π_mat = spatial_p
@@ -36,14 +36,14 @@ N_tot = 100_000
 N_unvac = round(N_tot * (1- w_pop_cov) )
 g = - log(1-0.9)/10
 
-params = SEIRModelParams(
+pars = SEIRModelParams(
     N_tot=N_tot, N_unvac=N_unvac, 
     days=365*3, g=g, 
     R0=14
 )
-dump(params)
+dump(pars)
 
-Re0 = params.R0 * (1-w_pop_cov)
+Re0 = pars.R0 * (1-w_pop_cov)
 
 # ## Check AFP incubation time 
 # Note: TO check this model change A as [1000, 0, 0, 0, 0, 0] within `initialize_model` function.
@@ -68,7 +68,7 @@ display(pl)
 # # Check single run
 
 Random.seed!(5)
-rec, outcome = run_sim(params; rec_flag=true)
+rec, outcome = run_sim(pars; rec_flag=true)
 println(outcome)
 pl = plot(xlim=[0,365*3], ylim=[0, 200])
 plot!(pl, 1:rec.days, rec.E, label="E")
@@ -79,7 +79,7 @@ plot!(pl, 1:rec.days, rec.R, label="R")
 outcomes = []
 N_sim = 10000
 for i in 1:N_sim
-    rec, outcome = run_sim(params; rec_flag=false)
+    rec, outcome = run_sim(pars; rec_flag=false)
     push!(outcomes, outcome)
 end
 df = DataFrame(outcomes)
@@ -88,7 +88,7 @@ first(df, 5)
 outcome_num_prop(df)
 
 # +
-days = params.days
+days = pars.days
 ts_ES = df[:, "t_ES"]
 ts_AFP = df[:, "t_AFP"]
 t_extinct = df[:, "t_extinct"]
@@ -99,19 +99,20 @@ pl1 = plot(
     legend=(0.6, 0.7),
 )
 annotate!((0.07, 0.95), "(A)")
-cum_ES = cumulative_counts(ts_ES, params.days; prop=true)
-cum_AFP = cumulative_counts(ts_AFP, params.days; prop=true)
-cum_ES_cond = conditional_cumulative_prob(ts_ES, t_extinct, params.days)
-cum_AFP_cond = conditional_cumulative_prob(ts_AFP, t_extinct, params.days)
+cum_ES = cumulative_counts(ts_ES, days; prop=true)
+cum_AFP = cumulative_counts(ts_AFP, days; prop=true)
+cum_ES_cond = conditional_cumulative_prob(ts_ES, t_extinct, days)
+cum_AFP_cond = conditional_cumulative_prob(ts_AFP, t_extinct, days)
 
-plot!(pl1, 1:params.days, cum_ES, label="Prob. via ES", color=1)
-plot!(pl1, 1:params.days, cum_ES_cond, label="Conditional Prob. via ES", color=1, linestyle=:dashdot)
-plot!(pl1, 1:params.days, cum_AFP, label="Prob. via AFP surv.", color=2)
-plot!(pl1, 1:params.days, cum_AFP_cond, label="Conditional Prob. via AFP surv.", color=2, linestyle=:dashdot)
+plot!(pl1, 1:days, cum_ES, label="Prob. via ES", color=1)
+plot!(pl1, 1:days, cum_ES_cond, label="Conditional Prob. via ES", color=1, linestyle=:dashdot)
+plot!(pl1, 1:days, cum_AFP, label="Prob. via AFP surv.", color=2)
+plot!(pl1, 1:days, cum_AFP_cond, label="Conditional Prob. via AFP surv.", color=2, linestyle=:dashdot)
 
-x = [1 for i in 1:length(diff)]
-pl2 = violin(x, diff, xticks=:none, ylabel="Lead time of ES (day)", legend=:none)
-boxplot!(pl2, x, diff, fillalpha=0.75)
+dif = leadtime_diff(df)
+x = [1 for i in 1:length(dif)]
+pl2 = violin(x, dif, xticks=:none, ylabel="Lead time of ES (day)", legend=:none)
+boxplot!(pl2, x, dif, fillalpha=0.75)
 annotate!((0.15, 0.95), "(B)")
 l = @layout [a{0.75w} b]
 pl = plot(pl1, pl2, 
@@ -122,10 +123,10 @@ display(pl)
 savefig(pl, "../res/fig_single_prob_lead.png")
 # -
 
-println("R0 = $(params.R0), Re0 = $((1-w_pop_cov)*params.R0)")
+println("R0 = $(pars.R0), Re0 = $((1-w_pop_cov)*pars.R0)")
 
-diff = leadtime_diff(df)
-leadtime_diff_statistics(diff)
+dif = leadtime_diff(df)
+leadtime_diff_statistics(dif)
 
 # +
 println("Need of inclusion of other vaccinated individuals to the model.")
