@@ -30,6 +30,7 @@ include("util.jl")
 include("model_meta_pop.jl")
 # -
 
+path = "../dt_tmp/spatial_params_agg230_unvac.ser"
 path = "../dt_tmp/spatial_params_agg230.ser"
 sp_pars = deserialize(path)
 nothing
@@ -42,14 +43,21 @@ path_res = "../dt_tmp_res/20230716_221956.ser" # 1000 simulations, R0=14.0, α=0
 
 path_res = "../dt_tmp_res/20230716_222655.ser"  # 1000 simulations, R0=13.0, α=0.05, 
 path_res = "../dt_tmp_res/20230716_220459.ser"  # 1000 simulations, R0=14.0, α=0.05
+#path_res = "../dt_tmp_res/20230719_072046.ser" # 100 simulations, R0=14.0, α=0.05
 
-# +
+# Population size is for male + female.
+#path_res = "../dt_tmp_res/20230719_084535.ser" #100 simulations, R0=14.0, α=0.05, unvac
+#path_res = "../dt_tmp_res/20230719_085244.ser" # 100 simulations, R0=14.0, α=0.05 
+#paht_res = "../dt_tmp_res/20230719_100652.ser" # 100 simulations, R0=14.0, α=0.05, international travel
+
+path_res = "../dt_tmp_res/20230719_103205.ser" # 1000 simulations, R0=14.0, α=0.05, international travel
+path_res = "../dt_tmp_res/20230719_115351.ser"
+# -
 
 path_params, res_all = deserialize(path_res)
 println(path_params)
 df_res1, df_res2, df_res3 = res_all
 nothing
-# -
 
 include("model_meta_pop.jl")
 paths = fetch_sim_paths(path_params)
@@ -68,33 +76,27 @@ df_diff = leadtime_diff_sensitivity(df_res, :ind_site)
 df_diff[:, :per_pop] = per_pop[sens_index]
 first(df_diff, 5)
 
+# +
 println("Precent of population coverage :", per_pop[5])
 df_res_tmp = filter(x -> x.ind_site == 5, df_res) 
 df_res_tmp = filter(x -> x.diff == x.diff, df_res_tmp)
-pl1 = scatter(df_res_tmp[:, :R_final_num], df_res_tmp[:, :diff],
-    xlabel = "Final AFP size",
+pl1 = scatter(df_res_tmp[:, :R_inf_ES], df_res_tmp[:, :diff],
+    xlabel = "Cumulative infections at 1st ES detection",
     ylabel = "Laed time", 
+    title="Population coverage $(per_pop[5])",
 )
-pl2 = scatter(df_res_tmp[:, :R_final_site], df_res_tmp[:, :diff],
-    xlabel = "Final site",
-    ylabel = "Laed time", 
-)
-plot(pl1, pl2, size=(800,400), left_margin=5Plots.mm, bottom_margin=5Plots.mm, fmt=:png)
-
-println("Precent of population coverage :", per_pop[90] )
-df_res_tmp = filter(x -> x.ind_site == 90, df_res) 
+ind = abs.(per_pop.- 50) |> argmin
+println("Precent of population coverage :", per_pop[ind] )
+df_res_tmp = filter(x -> x.ind_site == ind, df_res) 
 df_res_tmp = filter(x -> x.diff == x.diff, df_res_tmp)
-pl1 = scatter(df_res_tmp[:, :R_final_num], df_res_tmp[:, :diff],
-    xlabel = "Final AFP size",
+pl2 = scatter(df_res_tmp[:, :R_inf_ES], df_res_tmp[:, :diff],
+    xlabel = "Cumulative infections at 1st ES detection",
     ylabel = "Laed time", 
+    title="Population coverage $(per_pop[90])",
 )
-pl2 = scatter(df_res_tmp[:, :R_final_site], df_res_tmp[:, :diff],
-    xlabel = "Final site",
-    ylabel = "Laed time", 
-)
+
 plot(pl1, pl2, size=(800,400), left_margin=5Plots.mm, bottom_margin=5Plots.mm, fmt=:png)
-
-
+# -
 
 
 

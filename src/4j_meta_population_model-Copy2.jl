@@ -23,6 +23,7 @@ using Pipe
 using Plots
 using Rasters
 using Serialization
+using SparseArrays
 
 include("util.jl")
 include("model_meta_pop.jl")
@@ -30,30 +31,62 @@ include("model_meta_pop.jl")
 
 # # Transmission model 
 
-#path = "../dt_tmp/spatial_params_agg230.ser"
-path = "../dt_tmp/spatial_params_agg110.ser"
+#path = "../dt_tmp/spatial_params_agg110.ser"
+path = "../dt_tmp/spatial_params_agg230.ser"
+#path = "../dt_tmp/spatial_params_agg230_unvac.ser"
 sp_pars = deserialize(path)
-#spatial_p = (pop=pop, unvac=unvac, π_mat=π_mat, df=df_mer)
 @unpack pop, unvac, π_mat = sp_pars
 nothing
 
 n_site = length(sp_pars.pop)
 
 pars = SEIRMetaModelParams(
-    R0=14.0,
+    R0=15.0,
+    α=0.05,
     N_tot=sp_pars.pop,
     N_unvac=sp_pars.unvac,
     π_mat=sp_pars.π_mat,
     n_site=n_site,
-    α=0.10,
     days=365*3,
     )
 pars |> dump
 
 w_pop_cov = mean((pop .- unvac)./pop, weights(pop))
+println(w_pop_cov)
 Re0 = pars.R0 * (1-w_pop_cov)
 
+# +
+#(1-w_pop_cov).* [12,13,14,15,16]
+# -
+
+# ## International airport location, index 
+
+# +
+df = sp_pars.df
+# Tambo International
+lat = -26.12825796201514
+lon = 28.242074092511
+dist = harversine_dist.(lat, lon, df[:, :lat], df[:, :lon]) 
+println("argmin(dist): $(argmin(dist)), dist: $(dist[argmin(dist)])")
+
+# Cape Town 
+lat =  -33.970502228847884
+lon = 18.600228711334545
+dist = harversine_dist.(lat, lon, df[:, :lat], df[:, :lon]) 
+println("argmin(dist): $(argmin(dist)), dist: $(dist[argmin(dist)])")
+
+# King Shaka 
+lat =  -29.608764960536764
+lon = 31.115368797913593
+dist = harversine_dist.(lat, lon, df[:, :lat], df[:, :lon]) 
+println("argmin(dist): $(argmin(dist)), dist: $(dist[argmin(dist)])")
+
+
+# -
+
 # ## Run simulations 
+
+include("model_meta_pop.jl")
 
 # +
 pl = plot()
@@ -64,7 +97,7 @@ for i in 1:6
     Random.seed!(seed_num[i])
     rec, outcome, pars = run_sim(pars; rec_flag=true)
     #println(outcome.R_final_num, ", ", outcome.R_final_site)
-    ht = heatmap_meta_pop(rec.I[1:100,:])
+    ht = heatmap_meta_pop(rec.I[1:100,:] |> Matrix)
     push!(htmaps, ht)
 end
 plot(htmaps..., size=(800,800), layout=(3,2), title="", 
@@ -72,32 +105,11 @@ plot(htmaps..., size=(800,800), layout=(3,2), title="",
 )
 # -
 
-include("model_meta_pop.jl")
-
-Random.seed!(12)
-rec, outcome, pars = run_sim(pars; rec_flag=true)
-for _ in 1:100
-    break
-    rec, outcome, pars = run_sim(pars; rec_flag=true)
-    R_final_AFP = outcome.R_final_AFP
-    if (10 < R_final_AFP) & (R_final_AFP < 25)
-        break
-    end
-end
-
-
-pl = plot(fmt=:png)
-AFP_week = convert_daily_to_weekly_obs(rec.Z_A5_6)
-days = size(AFP_week)[2]
-AFP_size = sum(AFP_week, dims=1)[1, :]
-scatter!(1:days, AFP_size, title="Sample AFP detection pattern")
-display(pl)
-
 # ### Long run simulations 
 
 Random.seed!(48)
 dump(pars)
-path = @time run_and_save_sim(pars; n_sim=1000)
+path = @time run_and_save_sim(pars; n_sim=2000)
 
 # ## Baseline result for Surveillance part 
 
@@ -121,6 +133,7 @@ g = - log(1-p)/10
 pop = sp_pars.pop
 cum_prop = cumsum(pop/sum(pop))
 cov50 = abs.(cum_prop .- 0.5) |> argmin
+println("Cum index:", cov50)
 sum(pop[1:cov50])/sum(pop)*100 |> println
 area = fill(0, n_site)
 area[1:cov50] .= 1
@@ -189,10 +202,10 @@ plot!(pl1, 1:days, cum_ES_cond, label="Conditional Prob. via ES", color=1, lines
 plot!(pl1, 1:days, cum_AFP, label="Prob. via AFP surv.", color=2)
 plot!(pl1, 1:days, cum_AFP_cond, label="Conditional Prob. via AFP surv.", color=2, linestyle=:dashdot)
 
-diff = leadtime_diff(df)
-x = [1 for i in 1:length(diff)]
-pl2 = violin(x, diff, xticks=:none, ylabel="Lead time of ES (day)", legend=:none)
-boxplot!(pl2, x, diff, fillalpha=0.75)
+dif = leadtime_diff(df)
+x = [1 for i in 1:length(dif)]
+pl2 = violin(x, dif, xticks=:none, ylabel="Lead time of ES (day)", legend=:none)
+boxplot!(pl2, x, dif, fillalpha=0.75)
 annotate!((0.15, 0.95), "(B)")
 l = @layout [a{0.75w} b]
 pl = plot(pl1, pl2, 
@@ -214,11 +227,11 @@ dfM = @pipe filter(x -> isnan(x["t_AFP"]) == false, df)
 m_AFP = @pipe mean(dfM[:, "t_AFP"])  |> round(_, digits=2)
 println("Mean ES: $m_ES days, Mean AFP: $m_AFP days")
 
-vis_cumulative_prob(df, pars.days; title="sim =$n_sim, R0=$(res.pars.R0)")
+#vis_cumulative_prob(df, pars.days; title="sim =$n_sim, R0=$(res.pars.R0)")
 # -
 
-diff = leadtime_diff(df)
-leadtime_diff_statistics(diff)
+dif = leadtime_diff(df)
+leadtime_diff_statistics(dif)
 
 # ## Sensitivity all
 
@@ -242,12 +255,6 @@ path_save = "../dt_tmp_res/$(now_str).ser"
 res_all_path = (path=path, res_all=res_all)
 println(path_save)
 serialize(path_save, res_all_path)
-
-
-
-
-
-
 
 
 

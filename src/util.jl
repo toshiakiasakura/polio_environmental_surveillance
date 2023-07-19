@@ -11,14 +11,13 @@ using Serialization
 using Shapefile
 using StatsPlots
 
-function rand_binom(n, p)::Float64
+function rand_binom(n, p)::Int64
     if (n == 0) | (p == 0)
-        return 0.0
+        return 0
     else
         return rand(Binomial(n,p))
     end
 end
-rand_binom(n,p)::Float64 = n == 0 ? 0.0 : rand(Binomial(n,p))
 get_today_time() = @pipe now() |> Dates.format(_, "yyyymmdd_HHMMSS")
 
 

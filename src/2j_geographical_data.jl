@@ -91,6 +91,7 @@ CSV.write("../res/table_vaccine_coverage.csv", df_save)
 
 path = "../data/zaf_f_5_2020_constrained.tif"
 f_5_zaf = read(Raster(path))
+f_5_zaf = replace_missing(f_5_zaf, 0)
 plot(f_5_zaf)
 
 path = "../data/zaf_m_5_2020_constrained.tif"
@@ -100,28 +101,31 @@ plot(m_5_zaf)
 
 # #### Edit Point
 
-# agg_scale = 230 # Latitude diff: 21.31 km, Longitude diff: 19.74 km
-agg_scale = 110 # Latitude diff: 10.19 km, Longitude diff: 9.44 km
+#agg_scale = 110 # Latitude diff: 10.19 km, Longitude diff: 9.44 km
+agg_scale = 230 # Latitude diff: 21.31 km, Longitude diff: 19.74 km
 m_5_zaf_agg = Rasters.aggregate(sum, m_5_zaf, agg_scale; skipmissingval=true)
+f_5_zaf_agg = Rasters.aggregate(sum, f_5_zaf, agg_scale; skipmissingval=true)
+zaf_5_agg = m_5_zaf_agg .+ f_5_zaf_agg
 nothing
 
 # Print basic info.
-nr, nc = size(m_5_zaf_agg)
+nr, nc = size(zaf_5_agg)
 println("row: $nr, col: $nc, grid num: $(nr*nc)")
-get_gridsize(m_5_zaf_agg)
+get_gridsize(zaf_5_agg)
 
 # Draw population map
-plot(m_5_zaf_agg, fmt=:png) |> display
+plot(zaf_5_agg, fmt=:png) |> display
 
 include("util.jl")
 
 # Check population size change.
 m_5_zaf |> sum |> println
-m_5_zaf_agg |> sum |> println
+f_5_zaf |> sum |> println
+zaf_5_agg |> sum |> println
 
 # +
 cut_off_pop = 100
-df_ras = raster_to_df(m_5_zaf_agg)
+df_ras = raster_to_df(zaf_5_agg)
 
 println("Original size: ",size(df_ras))
 df_ras[!, :value] = @pipe df_ras[:, :value] .|> round(_; digits=0)
@@ -148,7 +152,7 @@ pl = histogram(log10.(df_ras[:, :value]),
 savefig(pl, "../res/fig_pop_histogram.png")
 display(pl)
 
-zaf_map = copy(m_5_zaf_agg)
+zaf_map = copy(zaf_5_agg)
 cond = zaf_map .< cut_off_pop
 zaf_map[cond] .= 0
 pl = plot(zaf_map, 
@@ -160,7 +164,7 @@ pl = plot(zaf_map,
 annotate!((0.1, 0.95), "(A)")
 add_zaf_borders!(pl)
 display(pl)
-# savefig(pl, "../res/fig_pop_map.png")
+savefig(pl, "../res/fig_pop_map.png")
 
 # ## Relate vaccination coverage data to population data. 
 
@@ -229,19 +233,47 @@ nothing
 df_mer[!, :unvac] = @pipe (df_mer[:, :value] .* (1 .- df_mer[:, :EVP])) .|> round(_, digits=0)
 sort!(df_mer, "value", rev=true)
 df_save = copy(df_mer)
+df_save[!, :cum_prop] = @pipe cumsum(df_save[:, :value])/sum(df_save[:, :value]).*100 .|> round(_, digits=1)
 df_save[:, :EVP] = df_save[:, :EVP] .* 100
 CSV.write("../res/table_pop_top.csv", df_save)
-first(df_mer, 15)
+first(df_mer, 30)
 
 # Weighted vaccine coverage. 
 prop = df_mer[:, :value]./sum(df_mer[:, :value])
 weighted_EVP = (df_mer[:, :EVP] .* prop) |> sum
+
+# ## Visualise the unimmunised population
+
+function visualise_unimmune(df_mer, title::String)
+    zaf_map = copy(zaf_5_agg)
+    zaf_map[:] .= 0
+    n = size(df_mer)[1]
+    for i in 1:n
+        x = df_mer[i, :lon]
+        y = df_mer[i, :lat]
+        v = df_mer[i, :unvac] |> Int64
+        zaf_map[ At(x), At(y)] = v
+    end
+    pl = plot()
+    plot!(zaf_map,
+        xlim=[15,35], ylim=[-35, -21],
+        axis=nothing, border=:none,
+        right_margins=8Plots.mm,
+        #colorbar_title="log10(πij)",
+        title=title,
+    )
+    add_zaf_borders!(pl)
+    return pl
+end
+
+visualise_unimmune(df_mer, "")
 
 # ## Calculate the probability of mobilisations
 
 include("util.jl")
 
 # +
+df_mer = sort(df_mer, "value", rev=true)
 pop = df_mer[:, "value"] 
 unvac = @pipe df_mer[:, :unvac] .|> round(_, digits=0) .|> Int64
 mat = df_mer[:, [:lat, :lon]] |> Matrix
@@ -252,15 +284,12 @@ path = "../dt_tmp/spatial_params_agg$(agg_scale).ser"
 println(path)
 serialize(path, spatial_p)
 # -
-
-
-
 # ## Visualisation
 
 include("util.jl")
 
-function visualise_probs(ind::Int64, title::String)
-    zaf_map = copy(m_5_zaf_agg)
+function visualise_probs(df_mer, ind::Int64, title::String)
+    zaf_map = copy(zaf_5_agg)
     zaf_map[:] .= 0
     n = size(df_mer)[1]
     for i in 1:n
@@ -288,7 +317,7 @@ pl1 = histogram(log10.(π_mat[:, ind]),
 )
 annotate!(pl1, (0.1, 0.95), "(A)")
 dist = df_mer[ind, "shapeName"]
-pl2 = visualise_probs(ind, "1st populous location\n$(dist)")
+pl2 = visualise_probs(df_mer, ind, "1st populous location\n$(dist)")
 annotate!(pl2, (0.1, 0.95), "(B)")
 
 ind = 2
@@ -298,7 +327,7 @@ pl3 = histogram(log10.(π_mat[:, ind]),
 )
 annotate!(pl3, (0.1, 0.95), "(C)")
 dist = df_mer[ind, "shapeName"]
-pl4 = visualise_probs(ind, "2nd populous location\n$(dist)")
+pl4 = visualise_probs(df_mer, ind, "2nd populous location\n$(dist)")
 annotate!(pl4, (0.1, 0.95), "(D)")
 
 ind = 3
@@ -308,7 +337,7 @@ pl5 = histogram(log10.(π_mat[:, ind]),
 )
 annotate!(pl5, (0.1, 0.95), "(E)")
 dist = df_mer[ind, "shapeName"]
-pl6 = visualise_probs(ind, "3rd populous location\n$(dist)")
+pl6 = visualise_probs(df_mer, ind, "3rd populous location\n$(dist)")
 annotate!(pl6, (0.1, 0.95), "(F)")
 
 l = @layout [
@@ -322,6 +351,65 @@ pl = plot(pl1, pl2, pl3, pl4, pl5, pl6,
 )
 display(pl)
 savefig(pl, "../res/fig_pi_map.png")
+# -
+# ## Unvaccinated base 
+
+# +
+df_mer2 = sort(df_mer, "unvac"; rev=true)
+pop = df_mer2[:, "value"] 
+unvac = @pipe df_mer2[:, :unvac] .|> round(_, digits=0) .|> Int64
+mat = df_mer2[:, [:lat, :lon]] |> Matrix
+π_mat = calculate_probability_of_pi(pop, mat)
+
+spatial_p = (pop=pop, unvac=unvac, π_mat=π_mat, df=df_mer2)
+path = "../dt_tmp/spatial_params_agg$(agg_scale)_unvac.ser"
+println(path)
+serialize(path, spatial_p)
+# -
+first(df_mer2, 10)
+
+# +
+ind = 1
+pl1 = histogram(log10.(π_mat[:, ind]),
+    legend=:none, 
+    xlabel = "log10(πi1)", ylabel="Number of locations",
+)
+annotate!(pl1, (0.1, 0.95), "(A)")
+dist = df_mer2[ind, "shapeName"]
+pl2 = visualise_probs(df_mer2, ind, "1st populous location\n$(dist)")
+annotate!(pl2, (0.1, 0.95), "(B)")
+
+ind = 2
+pl3 = histogram(log10.(π_mat[:, ind]),
+    legend=:none, 
+    xlabel = "log10(πi2)", ylabel="Number of locations",
+)
+annotate!(pl3, (0.1, 0.95), "(C)")
+dist = df_mer2[ind, "shapeName"]
+pl4 = visualise_probs(df_mer2, ind, "2nd populous location\n$(dist)")
+annotate!(pl4, (0.1, 0.95), "(D)")
+
+ind = 3
+pl5 = histogram(log10.(π_mat[:, ind]),
+    legend=:none, 
+    xlabel = "log10(πi3)", ylabel="Number of locations",
+)
+annotate!(pl5, (0.1, 0.95), "(E)")
+dist = df_mer2[ind, "shapeName"]
+pl6 = visualise_probs(df_mer2, ind, "3rd populous location\n$(dist)")
+annotate!(pl6, (0.1, 0.95), "(F)")
+
+l = @layout [
+    a{0.3w} b
+    c{0.3w} d
+    e{0.3w} f
+]
+pl = plot(pl1, pl2, pl3, pl4, pl5, pl6,
+    dpi=300, size=(800, 350 * 3), 
+    layout=l, left_margin=5Plots.mm,
+)
+display(pl)
+savefig(pl, "../res/fig_pi_map_unvac.png")
 # -
 
 

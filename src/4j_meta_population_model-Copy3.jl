@@ -41,8 +41,8 @@ nothing
 n_site = length(sp_pars.pop)
 
 pars = SEIRMetaModelParams(
-    R0=13.0,
-    α=0.05,
+    R0=14.0,
+    α=0.01,
     N_tot=sp_pars.pop,
     N_unvac=sp_pars.unvac,
     π_mat=sp_pars.π_mat,

@@ -4,6 +4,7 @@ using Parameters
 using ProtoStructs
 using Random
 using Serialization
+using SparseArrays
 using StatsBase
 
 include("util.jl")
@@ -65,7 +66,8 @@ end
     I::Vector{Int64}
     R::Vector{Int64}
     A::Array{Int64, 2}
-    Z_A5_6::Vector{Int64}
+    Z_A5_6::Int64
+    Z_S_E::Int64
 end
 
 @proto struct SEIRMetaModelRecord
@@ -73,9 +75,21 @@ end
     n_site::Int64
     #S::Array{Int64, 2} = fill(-999, n_site, days)
     #E::Array{Int64, 2} = fill(-999, n_site, days)
-    I::Array{Int64, 2} = fill(-999, n_site, days)
+    I::Array{Int64, 2} = fill(0, n_site, days)
     #R::Array{Int64, 2} = fill(-999, n_site, days)
-    Z_A5_6::Array{Int64, 2} = fill(-999, n_site, days)
+    Z_A5_6::Array{Int64, 1} = fill(0, days)
+    Z_S_E::Array{Int64, 1} = fill(0, days)
+end
+
+@proto struct SEIRMetaModelRecordSparse
+    days::Int64
+    n_site::Int64
+    #S::Array{Int64, 2} = fill(-999, n_site, days)
+    #E::Array{Int64, 2} = fill(-999, n_site, days)
+    I::SparseMatrixCSC{Int64, Int64} 
+    #R::Array{Int64, 2} = fill(-999, n_site, days)
+    Z_A5_6::SparseVector{Int64, Int64} 
+    Z_S_E::SparseVector{Int64, Int64} 
 end
 
 function set_values!(
@@ -83,21 +97,24 @@ function set_values!(
         model::SEIRMetaModelOneStep, 
         ind::Int64
     )
-    @unpack S, E, I, Z_A5_6 = model
+    @unpack S, E, I, Z_A5_6, Z_S_E = model
     #rec.S[ind] = S
     #rec.E[ind] = E
     rec.I[:, ind] = I
     #rec.R[ind] = R
-    rec.Z_A5_6[:, ind] = Z_A5_6
+    rec.Z_A5_6[ind] = Z_A5_6
+    rec.Z_S_E[ind] = Z_S_E
 end
 
 function initialize_model(params::SEIRMetaModelParams, rec_flag::Bool)
     @unpack I0_init, n_site, N_tot, N_unvac, days = params
     I0_ind = wsample(1:n_site, N_tot)
+    # For international airport introduction version.
+    #I0_ind = wsample([11, 7, 62], [4_342_611, 1_156_996, 188_243])
 
-    S = copy(N_unvac)
+    S = copy(N_unvac) 
     S[I0_ind] -= I0_init
-    I = fill(0, n_site)
+    I = fill(0, n_site) 
     I[I0_ind] += I0_init
 
     model = SEIRMetaModelOneStep(
@@ -106,7 +123,8 @@ function initialize_model(params::SEIRMetaModelParams, rec_flag::Bool)
         I = I,
         R = fill(0, n_site),
         A = fill(0, n_site, 6),
-        Z_A5_6 = fill(0, n_site)
+        Z_A5_6 = 0,
+        Z_S_E = 0,
     )
 
     if rec_flag == true
@@ -129,7 +147,7 @@ function update_model(
     @unpack S, E, I, R, A = model
 
     new_born = rand_binom.(N_unvac, μ)
-    ext = sum(π_mat .* I', dims=2)
+    ext = sum(π_mat .* I', dims=2)[:, 1]
     λ = β./N_tot.*( (1-α) .* I .+ α.*ext)
 
     rem_S = rand_binom.(S, 1 .- exp.(-λ .- μ))
@@ -160,7 +178,7 @@ function update_model(
 
     model = SEIRMetaModelOneStep(
         S=S, E=E, I=I, R=R, A=A,
-        Z_A5_6 = new_AFP[:, 6],
+        Z_A5_6 = sum(new_AFP[:, 6]), Z_S_E=sum(new_E) .|> Int64,
     )
     return model
 end
@@ -199,12 +217,19 @@ function run_sim(pars::SEIRMetaModelParams; rec_flag::Bool=false)
         R_final_site=R_final_site,
         R_final_AFP=R_final_AFP,
     )
-    return (rec=rec, outcome=outcome, pars=pars)
+    rec_sparse = SEIRMetaModelRecordSparse(
+        days=rec.days,
+        n_site=rec.n_site,
+        I=sparse(rec.I),
+        Z_A5_6=sparse(rec.Z_A5_6),
+        Z_S_E=sparse(rec.Z_S_E),
+    )
+    return (rec=rec_sparse, outcome=outcome, pars=pars)
 end
 
-function AFP_surveillance(rec::SEIRMetaModelRecord, pars::AFPSurParams)::Float64
+function AFP_surveillance(rec::SEIRMetaModelRecordSparse, pars::AFPSurParams)::Float64
     @unpack P_test, P_sample, P_H = pars
-    I_tot = sum(rec.Z_A5_6, dims=1)[1,: ]
+    I_tot = rec.Z_A5_6
     days = length(I_tot)
     t_AFP = NaN
     for t in 1:days
@@ -217,7 +242,7 @@ function AFP_surveillance(rec::SEIRMetaModelRecord, pars::AFPSurParams)::Float64
     return t_AFP
 end
 
-function enviro_surveillance(rec::SEIRMetaModelRecord, pars::ESParams)::Float64
+function enviro_surveillance(rec::SEIRMetaModelRecordSparse, pars::ESParams)::Float64
     @unpack g, P_test, area, n_freq = pars
     n_site, days = size(rec.I)
     
@@ -276,12 +301,14 @@ function collect_summary_statistics(
         rec, outcome, pars = res
         t_AFP = AFP_surveillance(rec, par_AFP)
         t_ES = enviro_surveillance(rec, par_ES)
+        R_inf_ES = isnan(t_ES) == false ? sum(rec.Z_S_E[begin:Int64(t_ES)]) : NaN
         res_t = (
             t_AFP=t_AFP,
             t_ES=t_ES,
+            R_inf_ES = R_inf_ES,
             outcome...
         )
-        push!(sim_res,res_t)
+        push!(sim_res,res_t, promote=true)
     end
     return sim_res
 end
@@ -311,7 +338,7 @@ function sensitivity_ana_ES(
 end
 
 function sensitivity_ana_all(
-        path::String, par_AFP::AFPSurParams, par_ES::ESParams,
+        path::String, par_AFP::AFPSurParams, par_ES::ESParams; 
     )
     path_objs = fetch_sim_paths(path)
     n_sim = length(path_objs)
@@ -357,7 +384,7 @@ end
 """
 function sensitivity_ES_catchment_area(
         res::NamedTuple, par_AFP::AFPSurParams,
-        par_ES::ESParams, sim_res::DataFrame,
+        par_ES::ESParams, sim_res::DataFrame
     )
     rec, outcome, pars = res
     t_AFP = AFP_surveillance(rec, par_AFP)
@@ -368,13 +395,15 @@ function sensitivity_ES_catchment_area(
         area[1:ind_site] .= 1
         par_ES.area = area
         t_ES = enviro_surveillance(rec, par_ES)
+        R_inf_ES = isnan(t_ES) == false ? sum(rec.Z_S_E[begin:Int64(t_ES)]) : NaN
         res_t = (
             t_AFP=t_AFP,
             t_ES=t_ES,
+            R_inf_ES=R_inf_ES,
             ind_site=ind_site,
             outcome...
         )
-        push!(sim_res, res_t)
+        push!(sim_res, res_t, promote=true)
     end
     return sim_res
 end
@@ -387,6 +416,7 @@ function sensitivity_hazard(
     )
     rec, outcome, pars = res
     t_AFP = AFP_surveillance(rec, par_AFP)
+
     pop90_list = [
         1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 
         20, 30, 40, 50, 60, 70, 80, 90, 100, 
@@ -395,14 +425,16 @@ function sensitivity_hazard(
     for pop90 in pop90_list
         par_ES.g = - log(1 - 0.9)/pop90
         t_ES = enviro_surveillance(rec, par_ES)
+        R_inf_ES = isnan(t_ES) == false ? sum(rec.Z_S_E[begin:Int64(t_ES)]) : NaN
         res_t = (
             t_AFP=t_AFP,
             t_ES=t_ES,
+            R_inf_ES=R_inf_ES,
             pop90=pop90,
             g=par_ES.g,
             outcome...
         )
-        push!(sim_res, res_t)
+        push!(sim_res, res_t, promote=true)
     end
     return sim_res
 end
@@ -415,19 +447,22 @@ function sensitivity_frequency_sampling(
     )
     rec, outcome, pars = res
     t_AFP = AFP_surveillance(rec, par_AFP)
+
     freq_list = [
         7, 14, 21, 28, 30, 35, 42, 49, 56, 63, 70, 77, 84, 91
     ]
     for n_freq in freq_list
         par_ES.n_freq = n_freq
         t_ES = enviro_surveillance(rec, par_ES)
+        R_inf_ES = isnan(t_ES) == false ? sum(rec.Z_S_E[begin:Int64(t_ES)]) : NaN
         res_t = (
             t_AFP=t_AFP,
             t_ES=t_ES,
+            R_inf_ES=R_inf_ES,
             n_freq=n_freq,
             outcome...
         )
-        push!(sim_res, res_t)
+        push!(sim_res, res_t, promote=true)
     end
     return sim_res
 end
@@ -445,19 +480,21 @@ function vis_detection_pattern(
     )
     pl = plot(
         xlabel=col, 
-        ylabel="Probability (%)",
+        ylabel="Detection pattern (%)",
         title="Prop. of polio detection (# of sim = $n_sim)", 
+        ylim=[0,100],
         fmt=:png;
         kwargs...
     )
     x = tab[:, col]
-    plot!(pl, x, tab[:, "Detect"]./n_sim*100, 
-        label="AFP surv. or ES", marker=:xcross, markersize=3)
-    plot!(pl, x, tab[:, "Both"]./n_sim*100, label="AFP surv. and ES", 
+    #plot!(pl, x, tab[:, "Detect"]./n_sim*100, 
+    #    label="AFP surv. or ES", marker=:xcross, markersize=3)
+    det = tab[:, "Detect"]
+    plot!(pl, x, tab[:, "Both"]./det.*100, label="AFP surv. and ES", 
         marker=:xcross, markersize=3)
-    plot!(pl, x, tab[:, "ES only"]./n_sim*100, label="ES only",
+    plot!(pl, x, tab[:, "ES only"]./det.*100, label="ES only",
         marker=:xcross, markersize=3)
-    plot!(pl, x, tab[:, "AFP only"]./n_sim*100, label="AFP surv. only",
+    plot!(pl, x, tab[:, "AFP only"]./det.*100, label="AFP surv. only",
         marker=:xcross, markersize=3)
     return pl
 end
