@@ -24,7 +24,7 @@ using Optim
 include("model.jl")
 # -
 
-path = "../dt_tmp/spatial_params_agg110.ser"
+path = "../dt_tmp/spatial_params_agg230.ser"
 spatial_p = deserialize(path)
 #spatial_p = (pop=pop, unvac=unvac, π_mat=π_mat, df=df_mer)
 @unpack pop, unvac, π_mat = spatial_p
@@ -122,6 +122,10 @@ pl = plot(pl1, pl2,
 display(pl)
 savefig(pl, "../res/fig_single_prob_lead.png")
 # -
+
+describe(dif)
+
+((dif.> 0) |> sum)/length(dif)*100
 
 println("R0 = $(pars.R0), Re0 = $((1-w_pop_cov)*pars.R0)")
 

@@ -8,7 +8,6 @@ using SparseArrays
 using StatsBase
 
 include("util.jl")
-
 mutable struct SEIRMetaModelParams
     R0::Float64 
     γ1::Float64 
@@ -55,7 +54,7 @@ mutable struct AFPSurParams
     P_test::Float64
     P_sample::Float64
     P_H::Float64
-    function AFPSurParams(;P_test=0.97, P_sample=0.8, P_H=0.9)
+    function AFPSurParams(;P_test=0.97, P_sample=0.53, P_H=0.9)
         new(P_test, P_sample, P_H)
     end
 end
@@ -73,10 +72,7 @@ end
 @proto struct SEIRMetaModelRecord
     days::Int64
     n_site::Int64
-    #S::Array{Int64, 2} = fill(-999, n_site, days)
-    #E::Array{Int64, 2} = fill(-999, n_site, days)
     I::Array{Int64, 2} = fill(0, n_site, days)
-    #R::Array{Int64, 2} = fill(-999, n_site, days)
     Z_A5_6::Array{Int64, 1} = fill(0, days)
     Z_S_E::Array{Int64, 1} = fill(0, days)
 end
@@ -84,10 +80,7 @@ end
 @proto struct SEIRMetaModelRecordSparse
     days::Int64
     n_site::Int64
-    #S::Array{Int64, 2} = fill(-999, n_site, days)
-    #E::Array{Int64, 2} = fill(-999, n_site, days)
     I::SparseMatrixCSC{Int64, Int64} 
-    #R::Array{Int64, 2} = fill(-999, n_site, days)
     Z_A5_6::SparseVector{Int64, Int64} 
     Z_S_E::SparseVector{Int64, Int64} 
 end
@@ -98,10 +91,7 @@ function set_values!(
         ind::Int64
     )
     @unpack S, E, I, Z_A5_6, Z_S_E = model
-    #rec.S[ind] = S
-    #rec.E[ind] = E
     rec.I[:, ind] = I
-    #rec.R[ind] = R
     rec.Z_A5_6[ind] = Z_A5_6
     rec.Z_S_E[ind] = Z_S_E
 end
@@ -246,7 +236,6 @@ function enviro_surveillance(rec::SEIRMetaModelRecordSparse, pars::ESParams)::Fl
     @unpack g, P_test, area, n_freq = pars
     n_site, days = size(rec.I)
     
-    # TODO: synchronize sampling time?
     nt = fill(0, n_site, days)
     st_ind = rand(1:n_freq)
     sample_ind = st_ind:n_freq:days
@@ -418,9 +407,9 @@ function sensitivity_hazard(
     t_AFP = AFP_surveillance(rec, par_AFP)
 
     pop90_list = [
-        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 
-        20, 30, 40, 50, 60, 70, 80, 90, 100, 
-        200, 300, 400, 500, 600, 700, 800, 900, 1000
+        1, 2, 3, 5, 7, 
+        10, 20, 30, 50, 70, 
+        100, 200, 300, 500, 700, 1000
     ]
     for pop90 in pop90_list
         par_ES.g = - log(1 - 0.9)/pop90
@@ -449,7 +438,7 @@ function sensitivity_frequency_sampling(
     t_AFP = AFP_surveillance(rec, par_AFP)
 
     freq_list = [
-        7, 14, 21, 28, 30, 35, 42, 49, 56, 63, 70, 77, 84, 91
+        1, 7, 14, 21, 28, 30, 35, 42, 49, 56,
     ]
     for n_freq in freq_list
         par_ES.n_freq = n_freq
@@ -491,11 +480,14 @@ function vis_detection_pattern(
     #    label="AFP surv. or ES", marker=:xcross, markersize=3)
     det = tab[:, "Detect"]
     plot!(pl, x, tab[:, "Both"]./det.*100, label="AFP surv. and ES", 
-        marker=:xcross, markersize=3)
+        marker=:circle, markersize=2, markerstrokewidth = 0,
+    )
     plot!(pl, x, tab[:, "ES only"]./det.*100, label="ES only",
-        marker=:xcross, markersize=3)
+        marker=:circle, markersize=2, markerstrokewidth = 0,
+    )
     plot!(pl, x, tab[:, "AFP only"]./det.*100, label="AFP surv. only",
-        marker=:xcross, markersize=3)
+        marker=:circle, markersize=2, markerstrokewidth = 0,
+    )
     return pl
 end
 
@@ -529,7 +521,8 @@ function vis_leadtime_diff_sensitivity(df_diff::DataFrame, col; kwargs...)
         color="blue", alpha=0.75, linestyle=:dashdot,
     )
     plot!(pl, x, df_diff[:, :q50], label="50th", 
-        marker=:xcross, markersize=3, color="blue", alpha=1.0,
+        color="blue", alpha=1.0,
+        marker=:circle, markersize=2, markerstrokewidth = 0,
         )
     plot!(pl, x, df_diff[:, :q75], label="75th", 
         color="blue", alpha=0.75, linestyle=:dashdot,
@@ -537,6 +530,7 @@ function vis_leadtime_diff_sensitivity(df_diff::DataFrame, col; kwargs...)
     plot!(pl, x, df_diff[:, :q95], label="95th", 
         color="blue", alpha=0.50, linestyle=:dot,
     )
+    #hline!(pl, [0], color="black", linestyle=:dot, label=:none)
     return pl
 end
 
@@ -571,16 +565,21 @@ function early_detect_prob_sensitivity(df_res::DataFrame, col)::DataFrame
 end
 
 function vis_early_detect_prob(df_det::DataFrame, col; kwargs...)
-    y_max = maximum(df_det[:, "lead_0"])
+    y_max = maximum(df_det[:, "lead_0"])*100
+    xticks=[0, 20, 40, 60, 80, 100]
     pl = plot(
-        xlabel="Population coverage (%)", ylabel="Probability of \nthe early detection by ES",
-        ylim=[0, y_max], fmt=:png;
+        xlabel="ES population coverage (%)", 
+        ylabel="Probability of \nearly detection by ES (%)",
+        ylim=[0, 100], xticks=xticks,
+        fmt=:png;
         kwargs...
         
     )
-    plot!(pl, df_det[:, col], df_det[:, "lead_0"], label="LT >0 days")
-    plot!(pl, df_det[:, col], df_det[:, "lead_30"], label="LT >30 days")
-    plot!(pl, df_det[:, col], df_det[:, "lead_60"], label="LT >60 days")
+    plot!(pl, df_det[:, col], df_det[:, "lead_0"]*100, label="LT >0 days")
+    plot!(pl, df_det[:, col], df_det[:, "lead_30"]*100, label="LT >30 days",
+        marker=:circle, markersize=2, markerstrokewidth = 0,
+    )
+    plot!(pl, df_det[:, col], df_det[:, "lead_60"]*100, label="LT >60 days")
     return pl
 end
 
@@ -611,7 +610,7 @@ function vis_ES_sensitivity_res(res_all::Tuple, n_sim::Int64, sp_pars::NamedTupl
     pl3 = vis_early_detect_prob(df_det, :per_pop,
         xlabel="Population coverage (%)", title="",
     )
-
+    plot!(pl3, [0, 100.0], [0,100.0], color=:black, label=:none, linestyle=:dot)
     # Sampling frequency
     df_res = df_res2
     tab = detection_pattern_sensitivity(df_res, :n_freq)
@@ -658,4 +657,61 @@ function vis_ES_sensitivity_res(res_all::Tuple, n_sim::Int64, sp_pars::NamedTupl
         size=(1200, 300*3),  # 400 * 2
         layout=(3,3),
         left_margin=5Plots.mm, bottom_margin=5Plots.mm)
+end
+
+function part_plot_detection_pattern(pl, df_res::DataFrame, col; label="", kargs...)
+    tab = nothing
+    if col == :per_pop
+        tab = detection_pattern_sensitivity(df_res, :ind_site)
+        tab[:, :per_pop] = per_pop[sens_index]
+    else
+        tab = detection_pattern_sensitivity(df_res, col)
+    end
+    det = tab[:, :Detect]
+    x = tab[:, col]
+    y = tab[:, :Both]./det.*100
+    plot!(pl, x, y, 
+        label=label,
+        ylim=[0, 100],
+        ylabel=ylabel_prob; 
+        kargs...
+        )
+    y = tab[:, "ES only"]./det.*100
+    plot!(pl, x, y, label=:none, linestyle=:dot; 
+        kargs...
+    )
+end
+
+function part_plot_diff_sensitivity(pl, df_res::DataFrame, col; label="",kargs...)
+    df_diff = nothing
+    if col == :per_pop
+        df_diff = leadtime_diff_sensitivity(df_res, :ind_site)
+        df_diff[:, :per_pop] = per_pop[sens_index]
+    else
+        df_diff = leadtime_diff_sensitivity(df_res, col)
+    end
+    plot!(pl, df_diff[:, col], df_diff[:, :q50],
+        label=label,
+        ylabel=ylabel_lead; 
+        kargs...
+    )
+end
+
+function part_plot_early_det(pl, df_res::DataFrame, col; label="", kargs...)
+    df_det = nothing
+    if col == :per_pop
+        df_det = early_detect_prob_sensitivity(df_res, :ind_site)
+        df_det[:, :per_pop] = per_pop[sens_index]
+    else
+        df_det= early_detect_prob_sensitivity(df_res, col)
+    end
+    y_max = maximum(df_det[:, :lead_30]).*100
+    xticks = [0, 20, 40, 60, 80, 100]
+    plot!(pl, df_det[:, col], df_det[:, :lead_30].*100,
+        label=label,
+        ylim=[0, 100.0],
+        xticks=xticks,
+        ylabel=ylabel_early; 
+        kargs...
+    )
 end

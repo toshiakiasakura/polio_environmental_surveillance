@@ -109,7 +109,7 @@ plot(htmaps..., size=(800,800), layout=(3,2), title="",
 
 Random.seed!(48)
 dump(pars)
-path = @time run_and_save_sim(pars; n_sim=2000)
+path = @time run_and_save_sim(pars; n_sim=5000)
 
 # ## Baseline result for Surveillance part 
 
@@ -129,10 +129,11 @@ par_AFP = AFPSurParams()
 # Hazard rate
 p = 0.9
 g = - log(1-p)/10
+cov_rate = 0.13 # Previously set to be 0.5
 # Catchment area
 pop = sp_pars.pop
 cum_prop = cumsum(pop/sum(pop))
-cov50 = abs.(cum_prop .- 0.5) |> argmin
+cov50 = abs.(cum_prop .- cov_rate) |> argmin
 println("Cum index:", cov50)
 sum(pop[1:cov50])/sum(pop)*100 |> println
 area = fill(0, n_site)

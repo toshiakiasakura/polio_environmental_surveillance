@@ -69,13 +69,17 @@ for r in eachrow(df_geo)
     sc = (r.EVP - lower)/(1 - lower)
     plot!(pl, r.geometry, color=amp[sc])
 end
-p2 = heatmap(rand(2,2), clims=(lower,1), framestyle=:none, 
+
+scatter!(pl, [28.2420, 18.6002, 31.1154], [-26.1282, -33.9705, -29.6087], marker=:star, 
+    markersize=6, color=["yellow", "lawngreen", "darkslategray1"], label=:none, 
+    markerstrokewidth=0.1)
+p2 = heatmap(rand(2,2), clims=(lower*100,100), framestyle=:none, 
     c=cgrad(amp), cbar=true, lims=(-1,0),
 )
 pl = plot(pl, p2, layout=l, right_margin=10Plots.mm, fmt=:png)
 annotate!((0.1, 0.95), "(B)")
 display(pl)
-# savefig(pl, "../res/fig_vaccine_coverage.png")
+savefig(pl, "../res/fig_vaccine_coverage.png")
 # -
 
 df_save = copy(df_vac)
@@ -242,7 +246,7 @@ first(df_mer, 30)
 prop = df_mer[:, :value]./sum(df_mer[:, :value])
 weighted_EVP = (df_mer[:, :EVP] .* prop) |> sum
 
-# ## Visualise the unimmunised population
+# ### Visualise the unimmunised population
 
 function visualise_unimmune(df_mer, title::String)
     zaf_map = copy(zaf_5_agg)
@@ -267,6 +271,29 @@ function visualise_unimmune(df_mer, title::String)
 end
 
 visualise_unimmune(df_mer, "")
+
+# ### Visualise where is the main points 
+
+# +
+pop = df_mer[:, :value]
+df_mer[!, :cum_per] = cumsum(pop)./sum(pop).*100 
+
+zaf_map = copy(zaf_5_agg)
+zaf_map[:] .= 0
+for r in eachrow(df_mer[40:60, :])
+    #annotate!(pl, r.lon, r.lat, text(r.cum_per, :left, 4))
+    zaf_map[ At(r.lon), At(r.lat)] = r.cum_per
+end
+
+pl = plot(zaf_map,
+    xlim=[15,35], ylim=[-35, -21],
+    #axis=nothing, border=:none,
+)
+add_zaf_borders!(pl)
+display(pl)
+# -
+
+df_mer
 
 # ## Calculate the probability of mobilisations
 

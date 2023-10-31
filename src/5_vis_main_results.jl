@@ -38,20 +38,17 @@ nothing
 # ## Visualise all 
 
 # +
-path_res = "../dt_tmp_res/20230716_214255.ser"   # 100 simulations, n_sim=100, R0=14.0, α=0.05 , 84.87
-path_res = "../dt_tmp_res/20230716_221956.ser" # 1000 simulations, R0=14.0, α=0.1,
+path_res = "../dt_tmp_res/20230719_175400.ser" # 2000 simulations, R0=13.0, α=0.05,
+path_res = "../dt_tmp_res/20230719_181019.ser" # 2000 simulations, R0=15.0, α=0.05, 
 
-path_res = "../dt_tmp_res/20230716_222655.ser"  # 1000 simulations, R0=13.0, α=0.05, 
-path_res = "../dt_tmp_res/20230716_220459.ser"  # 1000 simulations, R0=14.0, α=0.05
-#path_res = "../dt_tmp_res/20230719_072046.ser" # 100 simulations, R0=14.0, α=0.05
+path_res = "../dt_tmp_res/20230719_175307.ser" # 2000 simulations, R0=14.0, α=0.01,
+path_res = "../dt_tmp_res/20230719_180957.ser" # 2000 simulations, R0=14.0, α=0.1, 
 
-# Population size is for male + female.
-#path_res = "../dt_tmp_res/20230719_084535.ser" #100 simulations, R0=14.0, α=0.05, unvac
-#path_res = "../dt_tmp_res/20230719_085244.ser" # 100 simulations, R0=14.0, α=0.05 
-#paht_res = "../dt_tmp_res/20230719_100652.ser" # 100 simulations, R0=14.0, α=0.05, international travel
+# Baseline
 
-path_res = "../dt_tmp_res/20230719_103205.ser" # 1000 simulations, R0=14.0, α=0.05, international travel
-path_res = "../dt_tmp_res/20230719_115351.ser"
+
+path_res = "../dt_tmp_res/20230719_175720.ser" # 2000 simulations, R0=14.0, α=0.05, 
+path_res = "../dt_tmp_res/20230720_090053.ser" # 2000 simulations, R0=14.0, α=0.05, International airpot.
 # -
 
 path_params, res_all = deserialize(path_res)
@@ -77,22 +74,34 @@ df_diff[:, :per_pop] = per_pop[sens_index]
 first(df_diff, 5)
 
 # +
-println("Precent of population coverage :", per_pop[5])
-df_res_tmp = filter(x -> x.ind_site == 5, df_res) 
-df_res_tmp = filter(x -> x.diff == x.diff, df_res_tmp)
-pl1 = scatter(df_res_tmp[:, :R_inf_ES], df_res_tmp[:, :diff],
-    xlabel = "Cumulative infections at 1st ES detection",
-    ylabel = "Laed time", 
-    title="Population coverage $(per_pop[5])",
-)
-ind = abs.(per_pop.- 50) |> argmin
-println("Precent of population coverage :", per_pop[ind] )
+ind = abs.(per_pop.- 10) |> argmin
+per = per_pop[ind]
+println("Precent of population coverage :", per)
 df_res_tmp = filter(x -> x.ind_site == ind, df_res) 
 df_res_tmp = filter(x -> x.diff == x.diff, df_res_tmp)
-pl2 = scatter(df_res_tmp[:, :R_inf_ES], df_res_tmp[:, :diff],
+
+xticks = [1, 10, 100, 1000, 10_000, 100_000]
+pl1 = scatter(df_res_tmp[:, :R_inf_ES].+1, df_res_tmp[:, :diff],
     xlabel = "Cumulative infections at 1st ES detection",
     ylabel = "Laed time", 
-    title="Population coverage $(per_pop[90])",
+    xaxis=:log10, xticks=(xticks), 
+    markersize=2.5,
+    title="Population coverage $(per)",
+)
+
+ind = abs.(per_pop.- 50) |> argmin
+per = per_pop[ind]
+println("Precent of population coverage :", per)
+df_res_tmp = filter(x -> x.ind_site == ind, df_res) 
+df_res_tmp = filter(x -> x.diff == x.diff, df_res_tmp)
+xticks = [1, 10, 100, 1000]
+pl2 = scatter(df_res_tmp[:, :R_inf_ES].+1, df_res_tmp[:, :diff],
+    xlabel = "Cumulative infections at 1st ES detection",
+    ylabel = "Laed time", 
+    xaxis=:log10,
+    xticks=(xticks),
+    markersize=2.5,
+    title="Population coverage $(per)",
 )
 
 plot(pl1, pl2, size=(800,400), left_margin=5Plots.mm, bottom_margin=5Plots.mm, fmt=:png)
@@ -110,15 +119,15 @@ unvac = sp_pars.unvac
 per_pop = cumsum(pop)/sum(pop)*100
 sens_index = obtain_ES_sensitivity_index(pop, 0.01)
 w_pop_cov = mean((pop .- unvac)./pop, weights(pop))
-# TODO: adjust per_pop if not all sites are sampled.
 nothing
 
 paths = fetch_sim_paths(path_params)
 n_sim = length(paths)
 
 path_lis_R0 = [
-    "../dt_tmp_res/20230716_220459.ser"  # 1000 simulations, R0=14.0, α=0.05
-    "../dt_tmp_res/20230716_222655.ser"  # 1000 simulations, R0=13.0, α=0.05, 
+    "../dt_tmp_res/20230719_175400.ser" # 2000 simulations, R0=13.0, α=0.05,
+    "../dt_tmp_res/20230719_175720.ser" # 2000 simulations, R0=14.0, α=0.05, 
+    "../dt_tmp_res/20230719_181019.ser" # 2000 simulations, R0=15.0, α=0.05, 
 ]
 #cmap = palette(:default)
 
@@ -131,14 +140,18 @@ function part_plot_detection_pattern(pl, df_res::DataFrame, col; label="", kargs
     else
         tab = detection_pattern_sensitivity(df_res, col)
     end
-    y = tab[:, :Both]/n_sim*100
+    det = tab[:, :Detect]
+    x = tab[:, col]
+    y = tab[:, :Both]./det.*100
     y_max = maximum(y)
-    plot!(pl, tab[:, col], tab[:, :Both]/n_sim*100, 
+    plot!(pl, x, y, 
         label=label,
         ylim=[0, y_max],
         ylabel=ylabel_prob; 
         kargs...
         )
+    y = tab[:, "ES only"]./det.*100
+    plot!(pl, x, y, label=:none)
 end
 
 function part_plot_diff_sensitivity(pl, df_res::DataFrame, col; label="",kargs...)
@@ -164,10 +177,10 @@ function part_plot_early_det(pl, df_res::DataFrame, col; label="", kargs...)
     else
         df_det= early_detect_prob_sensitivity(df_res, col)
     end
-    y_max = maximum(df_det[:, :lead_30])
-    plot!(pl, df_det[:, col], df_det[:, :lead_30],
+    y_max = maximum(df_det[:, :lead_30]).*100
+    plot!(pl, df_det[:, col], df_det[:, :lead_30].*100,
         label=label,
-        ylim=[0,y_max],
+        ylim=[0, 100.0],
         ylabel=ylabel_early; 
         kargs...
     )
@@ -212,6 +225,7 @@ for (i, path) in enumerate(path_lis_R0)
         label=label,
         title="Early detection by ES \nwhen LT > 30 days or ES only",
     )
+    plot!(pls[3], [0, 100.0], [0,100.0], color=:black, label=:none, alpha=0.5, linestyle=:dash)
     
     # Sampling frequency
     df_res = df_res2
@@ -255,12 +269,11 @@ plot(pls..., layout=(3,3), size=(1200, 300*3),
 # # α sensitivity
 
 path_lis_α = [
-    "../dt_tmp_res/20230716_220459.ser"  # 1000 simulations, R0=14.0, α=0.05
-    "../dt_tmp_res/20230716_221956.ser" # 1000 simulations, R0=14.0, α=0.1,
+    "../dt_tmp_res/20230719_175307.ser" # 2000 simulations, R0=14.0, α=0.01,
+    "../dt_tmp_res/20230719_175720.ser" # 2000 simulations, R0=14.0, α=0.05, 
+    "../dt_tmp_res/20230719_180957.ser" # 2000 simulations, R0=14.0, α=0.1, 
 ]
 #cmap = palette(:default)
-
-
 
 # +
 pls = []
@@ -296,6 +309,7 @@ for (i, path) in enumerate(path_lis_α)
         label=label,
         title="Early detection by ES \nwhen LT > 30 days or ES only",
     )
+    plot!(pls[3], [0, 100.0], [0,100.0], color=:black, label=:none, alpha=0.5, linestyle=:dash)
     
     # Sampling frequency
     df_res = df_res2

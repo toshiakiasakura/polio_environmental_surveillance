@@ -27,7 +27,7 @@ struct SEIRModelParams
     function SEIRModelParams(;
             R0=10.0, γ1=1/4.0, γ2=1/15.02, σ=0.329,
             P_AFP=1/200, P_H=0.9, 
-            P_AFP_sample=0.8, P_AFP_test=0.97, P_ES_test=0.97,
+            P_AFP_sample=0.53, P_AFP_test=0.97, P_ES_test=0.97,
             N_tot=10000, N_unvac=1000, I0_init=1, g=0.23, 
             ES_n_freq=30, days=365, μ=1/(5*365)
         )
