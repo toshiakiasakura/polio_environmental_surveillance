@@ -107,9 +107,15 @@ plot(htmaps..., size=(800,800), layout=(3,2), title="",
 
 # ### Long run simulations 
 
+n_sim=50
+
 Random.seed!(48)
 dump(pars)
-path = @time run_and_save_sim(pars; n_sim=5000)
+path = @time run_and_save_sim(pars; n_sim=n_sim)
+
+# ## Check 
+
+paths = fetch_sim_paths(path)
 
 # ## Baseline result for Surveillance part 
 

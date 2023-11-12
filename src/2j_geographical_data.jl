@@ -27,6 +27,8 @@ using Rasters
 using Shapefile
 
 include("util.jl")
+include("geo_ana.jl")
+include("model_meta_pop.jl")
 # -
 
 # # Vaccination coverage data
@@ -55,96 +57,31 @@ nothing
 
 describe(df_vac[:, "EVP"])
 
-# +
-#path_shape = "../data/geoBoundaries-ZAF-ADM2.shp"
 path_shape = "../dt_geoBoundaries-ZAF-ADM2-all/geoBoundaries-ZAF-ADM2.shp"
 df_geo = GDF.read(path_shape)
 df_geo = innerjoin(df_geo, df_vac[:, ["shapeName", "EVP"]], on="shapeName")
+nothing
 
-l = @layout [a{0.95w} b]
-pl = plot(axis=nothing, border=:none, dpi=300)
-lower = 0.75
-amp = reverse(ColorSchemes.amp)
-for r in eachrow(df_geo)
-    sc = (r.EVP - lower)/(1 - lower)
-    plot!(pl, r.geometry, color=amp[sc])
-end
+create_vaccination_coverage_map(df_geo)
 
-scatter!(pl, [28.2420, 18.6002, 31.1154], [-26.1282, -33.9705, -29.6087], marker=:star, 
-    markersize=6, color=["yellow", "lawngreen", "darkslategray1"], label=:none, 
-    markerstrokewidth=0.1)
-p2 = heatmap(rand(2,2), clims=(lower*100,100), framestyle=:none, 
-    c=cgrad(amp), cbar=true, lims=(-1,0),
-)
-pl = plot(pl, p2, layout=l, right_margin=10Plots.mm, fmt=:png)
-annotate!((0.1, 0.95), "(B)")
-display(pl)
-savefig(pl, "../res/fig_vaccine_coverage.png")
-# -
-
-df_save = copy(df_vac)
-cols = ["shapeName", "sample_size",  "OPV0", "OPV1",
- "HEXA1",  "HEXA2",  "HEXA3",  "HEXA4",  "EVP", ]
-covs = ["OPV0", "OPV1", "HEXA1",  "HEXA2",  "HEXA3",  "HEXA4",  "EVP", ]
-df_save = df_save[:, cols]
-df_save[:, covs] = df_save[:, covs] .* 100
-df_save[:, "EVP"] = round.(df_save[:, "EVP"], digits=3)
-CSV.write("../res/table_vaccine_coverage.csv", df_save)
+save_vaccination_coverage_data(df_vac)
 
 # ## Read WorldPop data
 
-path = "../data/zaf_f_5_2020_constrained.tif"
-f_5_zaf = read(Raster(path))
-f_5_zaf = replace_missing(f_5_zaf, 0)
-plot(f_5_zaf)
+path1 = "../data/zaf_f_5_2020_constrained.tif"
+path2 = "../data/zaf_m_5_2020_constrained.tif"
 
-path = "../data/zaf_m_5_2020_constrained.tif"
-m_5_zaf = read(Raster(path))
-m_5_zaf = replace_missing(m_5_zaf, 0)
-plot(m_5_zaf)
-
-# #### Edit Point
-
-#agg_scale = 110 # Latitude diff: 10.19 km, Longitude diff: 9.44 km
-agg_scale = 230 # Latitude diff: 21.31 km, Longitude diff: 19.74 km
-m_5_zaf_agg = Rasters.aggregate(sum, m_5_zaf, agg_scale; skipmissingval=true)
-f_5_zaf_agg = Rasters.aggregate(sum, f_5_zaf, agg_scale; skipmissingval=true)
-zaf_5_agg = m_5_zaf_agg .+ f_5_zaf_agg
+zaf_5_agg = merge_two_map_data(path1, path2)
 nothing
 
-# Print basic info.
-nr, nc = size(zaf_5_agg)
-println("row: $nr, col: $nc, grid num: $(nr*nc)")
-get_gridsize(zaf_5_agg)
+# #### Edit Point
 
 # Draw population map
 plot(zaf_5_agg, fmt=:png) |> display
 
-include("util.jl")
-
-# Check population size change.
-m_5_zaf |> sum |> println
-f_5_zaf |> sum |> println
-zaf_5_agg |> sum |> println
-
-# +
 cut_off_pop = 100
 df_ras = raster_to_df(zaf_5_agg)
-
-println("Original size: ",size(df_ras))
-df_ras[!, :value] = @pipe df_ras[:, :value] .|> round(_; digits=0)
-filter!(x -> x.value > 0.0, df_ras)
-n_bf = df_ras[:, :value] |> sum
-println("Total population size before removing: ", n_bf)
-println("Before removing: ", size(df_ras))
-filter!(x -> x.value > cut_off_pop, df_ras)
-n_af = df_ras[:, :value] |> sum
-println("Total population size after removing: ", n_af)
-println("After removing: ", size(df_ras))
-nothing
-# -
-
-println("% or removal: ", (n_bf - n_af)/n_bf * 100)
+cut_validate_raster_dataframe!(df_ras, cut_off_pop)
 
 bins = [2 + 0.25*i for i in 0:12]
 pl = histogram(log10.(df_ras[:, :value]), 
@@ -156,86 +93,33 @@ pl = histogram(log10.(df_ras[:, :value]),
 savefig(pl, "../res/fig_pop_histogram.png")
 display(pl)
 
-zaf_map = copy(zaf_5_agg)
-cond = zaf_map .< cut_off_pop
-zaf_map[cond] .= 0
-pl = plot(zaf_map, 
-    xlim=[15,35], ylim=[-35, -21],
-    axis=nothing, border=:none,
-    right_margins=8Plots.mm,
-    dpi=300, fmt=:png
-)
-annotate!((0.1, 0.95), "(A)")
-add_zaf_borders!(pl)
-display(pl)
-savefig(pl, "../res/fig_pop_map.png")
+create_map_after_cutting(zaf_5_agg, cut_off_pop)
 
 # ## Relate vaccination coverage data to population data. 
+
+include("geo_ana.jl")
 
 df_ras  # population with coordinates
 df_geo # vaccination coverage by district with polygon data.
 nothing
 
-dist = []
-for r in eachrow(df_ras)
-    point = ArchGDAL.createpoint(r.lon, r.lat)
-    flag = false
-    for g in eachrow(df_geo)
-        pol = g.geometry
-        if  ArchGDAL.within(point, pol)
-            push!(dist, g.shapeName)
-            flag = true
-            break
-        end
-    end
-    if flag == false
-        push!(dist, "not determined")
-    end
-end
-df_ras[!, "shapeName"] = dist
+df_geo |> typeof
+
+df_ras = relate_df_ras_to_district_info(df_ras, df_geo)
 nothing
 
-(df_ras[:, "shapeName"] .== "not determined") |> sum
+n = (df_ras[:, "shapeName"] .== "not determined") |> sum 
+println("Check unclassified points are zero: ", n)
 
-df_fil = filter(x -> x.shapeName == "not determined", df_ras)
-pl = plot()
-scatter!(pl, df_fil[:, :lon], df_fil[:, :lat], )
-add_zaf_borders!(pl)
-
-function calculate_minimum_dist_given_polygon(lon, lat, pol)
-    pol_sim = ArchGDAL.simplify(pol, 0.05)
-    boundary = ArchGDAL.boundary(pol_sim)
-    n = ArchGDAL.ngeom(boundary)
-    dist = Inf
-    for i in 1:n
-        lon2, lat2, z = ArchGDAL.getpoint(boundary, i - 1)
-        dist_tmp = harversine_dist(lat, lon, lat2, lon2)
-        dist = minimum([dist, dist_tmp])
-    end
-    return dist
-end
-
-for (i,r) in enumerate(eachrow(df_ras))
-    if r.shapeName == "not determined"
-        dist = Inf
-        dist_name = "not determined"
-        for r_geo in eachrow(df_geo)
-            dist_tmp = calculate_minimum_dist_given_polygon(r.lon, r.lat, r_geo.geometry)
-            if dist > dist_tmp
-                dist = dist_tmp
-                dist_name = r_geo.shapeName
-            end
-        end
-        df_ras[i, "shapeName"] = dist_name
-    end
-end
-
-(df_ras[:, "shapeName"] .== "not determined") |> sum |> println
+# df_mer: df_ras + EVP and unvaccinated population info.
 df_mer = leftjoin(df_ras, df_vac[:, ["shapeName", "EVP"]], on="shapeName")
-nothing
-
 df_mer[!, :unvac] = @pipe (df_mer[:, :value] .* (1 .- df_mer[:, :EVP])) .|> round(_, digits=0)
 sort!(df_mer, "value", rev=true)
+pop = df_mer[:, :value]
+df_mer[!, :cum_per] = cumsum(pop)./sum(pop).*100 
+nothing
+
+# Save top30 population district data.
 df_save = copy(df_mer)
 df_save[!, :cum_prop] = @pipe cumsum(df_save[:, :value])/sum(df_save[:, :value]).*100 .|> round(_, digits=1)
 df_save[:, :EVP] = df_save[:, :EVP] .* 100
@@ -248,52 +132,76 @@ weighted_EVP = (df_mer[:, :EVP] .* prop) |> sum
 
 # ### Visualise the unimmunised population
 
-function visualise_unimmune(df_mer, title::String)
-    zaf_map = copy(zaf_5_agg)
-    zaf_map[:] .= 0
-    n = size(df_mer)[1]
-    for i in 1:n
-        x = df_mer[i, :lon]
-        y = df_mer[i, :lat]
-        v = df_mer[i, :unvac] |> Int64
-        zaf_map[ At(x), At(y)] = v
-    end
-    pl = plot()
-    plot!(zaf_map,
-        xlim=[15,35], ylim=[-35, -21],
-        axis=nothing, border=:none,
-        right_margins=8Plots.mm,
-        #colorbar_title="log10(πij)",
-        title=title,
-    )
-    add_zaf_borders!(pl)
-    return pl
-end
+visualise_unimmune(df_mer, zaf_5_agg, "")
 
-visualise_unimmune(df_mer, "")
-
-# ### Visualise where is the main points 
+# ### Calculate population and ES coverage by district
 
 # +
-pop = df_mer[:, :value]
-df_mer[!, :cum_per] = cumsum(pop)./sum(pop).*100 
+national_ES_cov = 8.59
+df_prop = copy(df_mer)
+df_prop[:, :flag_pc100] = (df_prop[:, :cum_per] * 1.0) .< national_ES_cov
+df_prop[:, :flag_pc50] = (df_prop[:, :cum_per] * 0.5) .< national_ES_cov
+df_prop[:, :flag_pc25] = (df_prop[:, :cum_per] * 0.25) .< national_ES_cov
+df_prop[:, :flag_pc20] = (df_prop[:, :cum_per] * 0.20) .< national_ES_cov
 
-zaf_map = copy(zaf_5_agg)
-zaf_map[:] .= 0
-for r in eachrow(df_mer[40:60, :])
-    #annotate!(pl, r.lon, r.lat, text(r.cum_per, :left, 4))
-    zaf_map[ At(r.lon), At(r.lat)] = r.cum_per
-end
-
-pl = plot(zaf_map,
-    xlim=[15,35], ylim=[-35, -21],
-    #axis=nothing, border=:none,
-)
-add_zaf_borders!(pl)
-display(pl)
+prop_f = (x,y; pc=1.0) -> sum(x .* y) ./ sum(x) .* 100 .* pc
+dfM = @pipe df_prop |> groupby(_, :shapeName) |> 
+    DataFrames.combine(_, :value =>( x -> sum(x) ) => :tot_pop, 
+        [:value, :flag_pc100] => prop_f => :prop_pc100,
+        [:value, :flag_pc50] =>( (x,y) -> prop_f(x,y; pc=0.5) )=> :prop_pc50,
+        [:value, :flag_pc25] =>( (x,y) -> prop_f(x,y; pc=0.25) )=> :prop_pc25,
+        #[:value, :flag_pc20] =>( (x,y) -> prop_f(x,y; pc=0.2) )=> :prop_pc20,
+    )
+@pipe dfM |> sort(_, :prop_pc25, rev=true) |> first(_, 20)
 # -
 
-df_mer
+# ### Visualise where is the main points 
+# TODO: Move this part to another code file, and create the gif picture. 
+
+cum_per = df_mer[:, :cum_per]
+"$(round(cum_per[1],digits=1))"
+
+# +
+# Prepare data
+cum_per = df_mer[:, :cum_per]
+pop = df_mer[:, :value]
+sens_index = obtain_ES_sensitivity_index(pop, 0.01)
+zaf_map = copy(zaf_5_agg)
+zaf_map[:] .= 0
+
+# Create multiple files.
+l_ind =  1
+for (i, r_ind) in enumerate(sens_index)
+    ind = l_ind:r_ind
+    for r in eachrow(df_mer[ind,:])
+        zaf_map[ At(r.lon), At(r.lat)] = 100
+    end
+    l_ind = r_ind + 1
+    #annotate!(pl, r.lon, r.lat, text(r.cum_per, :left, 4))
+    pl = plot(zaf_map,
+        xlim=[15,35], ylim=[-35, -21],
+        color=:blue,
+        colorbar=false,
+        axis=nothing, border=:none,
+        dpi=100, fmt=:png, size=(1200,1200),
+    )
+    per = round(cum_per[r_ind],digits=1)
+    annotate!(20, -20, text("%Population size: $(per)%\nNumber of sites: $(r_ind)", :left, 30))
+    add_zaf_borders!(pl)
+    file = lpad(i, 4, "0")
+    savefig(pl, "../dt_tmp/gif_map/$(file).png")
+end
+# Make gif in python
+# -
+
+sum(sens_index .<= 33) 
+
+n = (df_mer[:, :cum_per] .<= 8.59/0.25) |> sum
+println("pc 25, maximum index: ", sum(sens_index .<= n), ", Number of sites: ", n)
+n = (df_mer[:, :cum_per] .<= 8.59/0.30) |> sum
+println("pc 30, maximum index: ", sum(sens_index .<= n), ", Number of sites: ", n)
+n = (df_mer[:, :cum_per] .<= 8.59/0.5) |> sum
+println("pc 50, maximum index: ", sum(sens_index .<= n), ", Number of sites: ", n)
 
 # ## Calculate the probability of mobilisations
 
@@ -311,6 +219,13 @@ path = "../dt_tmp/spatial_params_agg$(agg_scale).ser"
 println(path)
 serialize(path, spatial_p)
 # -
+pop_rev = sort(pop, rev=false)
+prop = pop_rev./sum(pop_rev)
+cum = cumsum(prop)
+scatter(log10.(pop_rev), cum, title="How population_size scenairio works")
+
+histogram(log10.(pop))
+
 # ## Visualisation
 
 include("util.jl")
@@ -338,9 +253,9 @@ end
 
 # +
 ind = 1
-pl1 = histogram(log10.(π_mat[:, ind]),
+pl1 = histogram(log10.(π_mat[ind, :]),
     legend=:none, 
-    xlabel = "log10(πi1)", ylabel="Number of locations",
+    xlabel = "log10(π1i)", ylabel="Number of locations",
 )
 annotate!(pl1, (0.1, 0.95), "(A)")
 dist = df_mer[ind, "shapeName"]
@@ -348,19 +263,19 @@ pl2 = visualise_probs(df_mer, ind, "1st populous location\n$(dist)")
 annotate!(pl2, (0.1, 0.95), "(B)")
 
 ind = 2
-pl3 = histogram(log10.(π_mat[:, ind]),
+pl3 = histogram(log10.(π_mat[ind, :]),
     legend=:none, 
-    xlabel = "log10(πi2)", ylabel="Number of locations",
+    xlabel = "log10(π2i)", ylabel="Number of locations",
 )
 annotate!(pl3, (0.1, 0.95), "(C)")
 dist = df_mer[ind, "shapeName"]
 pl4 = visualise_probs(df_mer, ind, "2nd populous location\n$(dist)")
 annotate!(pl4, (0.1, 0.95), "(D)")
 
-ind = 3
-pl5 = histogram(log10.(π_mat[:, ind]),
+ind = 3 
+pl5 = histogram(log10.(π_mat[ind, :]),
     legend=:none, 
-    xlabel = "log10(πi3)", ylabel="Number of locations",
+    xlabel = "log10(π3i)", ylabel="Number of locations",
 )
 annotate!(pl5, (0.1, 0.95), "(E)")
 dist = df_mer[ind, "shapeName"]

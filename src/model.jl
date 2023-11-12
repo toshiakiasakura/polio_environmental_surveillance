@@ -24,16 +24,18 @@ struct SEIRModelParams
     ES_n_freq::Int64
     μ::Float64
     β::Float64
+    pc::Float64
     function SEIRModelParams(;
             R0=10.0, γ1=1/4.0, γ2=1/15.02, σ=0.329,
             P_AFP=1/200, P_H=0.9, 
             P_AFP_sample=0.53, P_AFP_test=0.97, P_ES_test=0.97,
             N_tot=10000, N_unvac=1000, I0_init=1, g=0.23, 
-            ES_n_freq=30, days=365, μ=1/(5*365)
+            ES_n_freq=30, days=365, μ=1/(5*365), pc=1.00
         )
         new(R0, γ1, γ2, σ, P_AFP, P_H, 
             P_AFP_sample, P_AFP_test, P_ES_test,
-            N_tot, N_unvac, I0_init, g, days, ES_n_freq, μ, R0*γ2
+            N_tot, N_unvac, I0_init, g, days, ES_n_freq, μ, R0*γ2,
+            pc
             )
     end
 end
@@ -51,7 +53,8 @@ end
 @proto struct SEIRModelOneStep
     S::Int64
     E::Int64
-    I::Int64
+    Inc::Int64
+    Ic::Int64
     R::Int64
     A::Array{Int64, 1} 
     Z_A5_6::Int64
@@ -62,23 +65,28 @@ function set_values!(
         model::SEIRModelOneStep, 
         ind::Int64
     )
-    @unpack S, E, I, R, A, Z_A5_6 = model
+    @unpack S, E, Inc, Ic, R, A, Z_A5_6 = model
     rec.S[ind] = S
     rec.E[ind] = E
-    rec.I[ind] = I
+    rec.I[ind] = Ic
     rec.R[ind] = R
     rec.A[ind, :] = A
     rec.Z_A5_6[ind] = Z_A5_6
 end
 
-function initialize_model(params::SEIRModelParams, rec_flag::Bool)
-    @unpack N_tot, N_unvac, I0_init, days = params
+function initialize_model(params::SEIRModelParams, rec_flag::Bool; pattern="")
+    @unpack N_tot, N_unvac, I0_init, days, pc = params
+    A = pattern == "check_incubation" ? [1000, 0, 0, 0, 0, 0] : [0, 0, 0, 0, 0, 0]
+
+    Ic_init = rand_binom(I0_init, pc)
+    Inc_init = I0_init - Ic_init
     model = SEIRModelOneStep(
         S = N_unvac - I0_init,
         E = 0,
-        I = I0_init,
+        Ic = Ic_init,
+        Inc = Inc_init,
         R = 0,
-        A = [0, 0, 0, 0, 0, 0],
+        A = A,
         Z_A5_6 = 0, # Newly seeking
     )
 
@@ -96,19 +104,22 @@ function update_model(
         params::SEIRModelParams
     )::SEIRModelOneStep
 
-    @unpack γ1, γ2, σ, P_AFP, days, β, N_tot, μ = params
-    @unpack S, E, I, R, A = model
+    @unpack γ1, γ2, σ, P_AFP, days, β, N_tot, μ, pc = params
+    @unpack S, E, Ic, Inc, R, A = model
 
     new_born = rand_binom(N_unvac, μ)
-    p_inf = β/N_tot*I
+    p_inf = β/N_tot*(Ic + Inc)
     rem_S = rand_binom(S, 1 .- exp(- p_inf- μ))
     new_E = rand_binom(rem_S, p_inf/(p_inf + μ))
 
     rem_E = rand_binom(E, 1 .- exp(-γ1 - μ))
     new_I = rand_binom(rem_E, γ1/(γ1 + μ))
+    new_Ic = rand_binom(new_I, pc)
+    new_Inc = new_I - new_Ic
 
-    rem_I = rand_binom(I, 1 .- exp(- γ2 - μ))
-    new_R = rand_binom(rem_I, γ2/(γ2 + μ))
+    rem_Ic = rand_binom(Ic, 1 .- exp(- γ2 - μ))
+    rem_Inc = rand_binom(Inc, 1 .- exp(- γ2 - μ))
+    new_R = rand_binom(rem_Ic + rem_Inc, γ2/(γ2 + μ))
 
     new_AFP1 = rand_binom(new_E, P_AFP)
     new_AFP = [new_AFP1]
@@ -119,8 +130,9 @@ function update_model(
 
     S += new_born - rem_S
     E +=          + new_E - rem_E
-    I +=                  + new_I - rem_I
-    R +=                          + new_R
+    Ic +=                  + new_Ic  - rem_Ic
+    Inc +=                 + new_Inc - rem_Inc
+    R +=                             + new_R
 
     for i in 1:5
         A[i] += new_AFP[i] - new_AFP[i+1]
@@ -128,17 +140,19 @@ function update_model(
     A[6] += new_AFP[6]
 
     model = SEIRModelOneStep(
-        S=S, E=E, I=I, R=R, A=A,
+        S=S, E=E, Ic=Ic, Inc=Inc, R=R, A=A,
         Z_A5_6=new_AFP[6]
     )
     return model
 end
 
-function run_sim(params::SEIRModelParams; rec_flag::Bool=false)
+function run_sim(params::SEIRModelParams; 
+        rec_flag::Bool=false, pattern=""
+        )
     @unpack γ1, γ2, σ, P_AFP, P_H, P_AFP_sample, 
             P_AFP_test, P_ES_test, days, ES_n_freq, g = params
 
-    rec, model = initialize_model(params, rec_flag)
+    rec, model = initialize_model(params, rec_flag; pattern=pattern)
     # set ES scheudle
     nt = [0 for _ in 1:days]
     st_ind = rand(1:ES_n_freq)
@@ -152,7 +166,7 @@ function run_sim(params::SEIRModelParams; rec_flag::Bool=false)
     
     for t in 2:days
         # Stop condition
-        if (model.E + model.I + sum(model.A)) == 0
+        if (model.E + model.Inc + model.Ic + sum(model.A)) == 0
             t_extinct = isnan(t_extinct) == true ? t : t_extinct
             R_final = model.R
             if rec_flag == true
@@ -170,7 +184,7 @@ function run_sim(params::SEIRModelParams; rec_flag::Bool=false)
 
         # ES surveillance
         if isnan(t_ES) == true
-            ωt = 1 - exp(-g * model.I)
+            ωt = 1 - exp(-g * model.Ic)
             wt = rand_binom(nt[t], ωt*P_ES_test)
             t_ES = wt == 1 ? t : t_ES
         end

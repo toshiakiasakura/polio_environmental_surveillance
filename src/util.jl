@@ -144,56 +144,6 @@ function leadtime_diff_statistics(diff::Vector)
     boxplot(diff, size=(300,500), fmt=:png) |> display
 end
 
-function raster_to_df(ras::Raster)::DataFrame
-    coords = []
-    lon = lookup(ras, X)
-    lat = lookup(ras, Y)
-    for lo in lon, la in lat
-        push!(coords, (lon=lo, lat=la, value=ras[At(lo), At(la)]))
-    end
-    df = DataFrame(coords)
-    return df
-end
-
-function add_zaf_borders!(pl)
-    path_shape = "../dt_geoBoundaries-ZAF-ADM2-all/geoBoundaries-ZAF-ADM2.shp"
-    function borders!(p, poly)
-        for i in 1:length(p)
-            plot!(p, poly; subplot=i, fillalpha=0, linewidth=0.6)
-        end
-        return p
-    end
-    shapes = Shapefile.Handle(path_shape)
-    borders!(pl, shapes)
-end
-
-"""
-    harvesine_dist(ϕ1, λ1, ϕ2, λ2)::Float64
-
-Calculate distance between two geographical points using Vincenty Formula.
-
-# Arguments
-- `ϕ1::Float64`: latitude 1 [deg].
-- `λ1::Float64`: longitude 1 [deg].
-- `ϕ2::Float64`: latitude 2 [deg].
-- `λ2::Float64`: longitude 2 [deg].
-"""
-function harversine_dist(ϕ1::Float64, λ1::Float64, ϕ2::Float64, λ2::Float64)::Float64
-    r = 6371
-    Δϕ = ϕ1 - ϕ2
-    Δλ = λ1 - λ2
-    a = sind(Δϕ/2.0)^2 + cosd(ϕ1)*cosd(ϕ2)*sind(Δλ/2.0)^2
-    d = 2*r*atand(√a, √(1.0-a))*2π/360 # convert degree to radian
-    return d
-end
-
-function get_gridsize(ras::Raster)
-    lon = lookup(ras, X)
-    lat = lookup(ras, Y)
-    Δlat = @pipe harversine_dist(lat[1], lon[1], lat[2], lon[1]) |> round(_; digits=2)
-    Δlon = @pipe harversine_dist(lat[1], lon[1], lat[1], lon[2]) |> round(_; digits=2)
-    println("Latitude diff: $Δlat km, Longitude diff: $Δlon km")
-end
 
 function crosstab(df::DataFrame, row, col)::DataFrame
     tab = freqtable(df, row, col)
@@ -220,40 +170,4 @@ function convert_daily_to_weekly_obs(I_obs::Array{Int64, 2}; index=1)
         I_obs7[:, i] = sum(I_obs[:, st:fin], dims=2)
     end
     return I_obs7
-end
-
-"""
-
-# Arguments
-- `pop`: Population size vector.
-- `mat`: Matrix of latitude and longitude.
-
-# Returns
-- Matrix: Movement of travellers from columns to rows.
-"""
-function calculate_probability_of_pi(pop::Vector, mat::Matrix)::Matrix
-    n_point = length(pop)
-    d_mat = fill(0., n_point, n_point)
-    for i in 1:n_point, j in 1:n_point
-        ϕ1, λ1 = mat[i, :]
-        ϕ2, λ2 = mat[j, :]
-        d_mat[i,j] = harversine_dist(ϕ1, λ1, ϕ2, λ2)
-    end
-
-    # Calculate sij
-    s_mat = fill(0., n_point, n_point)
-    for i in 1:n_point, j in 1:n_point
-        d_i = d_mat[i, :]
-        cond = d_i .< d_i[j] # exclude the destination area.
-        s_mat[i,j] = sum(pop[cond]) - pop[i]
-    end
-    s_mat[ diagind(s_mat)] .= 0
-
-    # Calculate πij
-    π_mat = fill(0., n_point, n_point)
-    for i in 1:n_point, j in 1:n_point
-        π_mat[i, j] = pop[i]*pop[j]/(pop[i] + s_mat[i,j])/(pop[i] + pop[j] + s_mat[i,j])
-    end
-    π_mat[diagind(π_mat)] .= 0
-    return π_mat
 end

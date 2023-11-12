@@ -1,4 +1,5 @@
 using Accessors
+using CategoricalArrays
 using Glob
 using Parameters
 using ProtoStructs
@@ -24,17 +25,21 @@ mutable struct SEIRMetaModelParams
     π_mat::Matrix{Float64}
     μ::Float64
     β::Float64
+    pc::Float64
+    imp_ws::Vector{Float64}
     function SEIRMetaModelParams(;
             R0=10.0, γ1=1/4.0, γ2=1/15.02, σ=0.3291,
             P_AFP=1/200, 
             N_tot=[1], N_unvac=[1], I0_init=1, I0_ind=1,
             days=365, n_site=1,
             α=0.05, π_mat=fill(0,1,1), μ=1/(5*365),
+            pc=1.0, imp_ws=[1.0]
         )
         new(R0, γ1, γ2, σ, P_AFP,
             N_tot, N_unvac, I0_init, I0_ind, 
             days, n_site,
-            α, π_mat, μ, R0*γ2
+            α, π_mat, μ, R0*γ2, 
+            pc, imp_ws
             )
     end
 end
@@ -62,7 +67,8 @@ end
 @proto struct SEIRMetaModelOneStep
     S::Vector{Int64}
     E::Vector{Int64}
-    I::Vector{Int64}
+    Ic::Vector{Int64}
+    Inc::Vector{Int64}
     R::Vector{Int64}
     A::Array{Int64, 2}
     Z_A5_6::Int64
@@ -90,27 +96,43 @@ function set_values!(
         model::SEIRMetaModelOneStep, 
         ind::Int64
     )
-    @unpack S, E, I, Z_A5_6, Z_S_E = model
-    rec.I[:, ind] = I
+    @unpack S, E, Ic, Inc, Z_A5_6, Z_S_E = model
+    rec.I[:, ind] = Ic
     rec.Z_A5_6[ind] = Z_A5_6
     rec.Z_S_E[ind] = Z_S_E
 end
 
-function initialize_model(params::SEIRMetaModelParams, rec_flag::Bool)
-    @unpack I0_init, n_site, N_tot, N_unvac, days = params
-    I0_ind = wsample(1:n_site, N_tot)
-    # For international airport introduction version.
-    #I0_ind = wsample([11, 7, 62], [4_342_611, 1_156_996, 188_243])
+function initialize_model(params::SEIRMetaModelParams, rec_flag::Bool;
+     pattern=""
+     )
+    @unpack I0_init, n_site, N_tot, N_unvac, days, pc, imp_ws = params
+    if pattern == "population_size"
+        I0_ind = wsample(1:n_site, N_tot)
+    elseif pattern == "airport"
+        # For international airport introduction version.
+        I0_ind = wsample([11, 7, 62], [4_342_611, 1_156_996, 188_243])
+    elseif pattern == "mozambique"
+        I0_ind = wsample(1:n_site, imp_ws)
+    else
+        error("Specify pattern: 'population_size', 'airport' or 'mozambique'")
+    end
 
     S = copy(N_unvac) 
     S[I0_ind] -= I0_init
-    I = fill(0, n_site) 
-    I[I0_ind] += I0_init
+
+    # initialise Ic and Inc.
+    Ic_init = rand_binom(I0_init, pc)
+    Inc_init = I0_init - Ic_init
+    Ic = fill(0, n_site) 
+    Ic[I0_ind] += Ic_init
+    Inc = fill(0, n_site) 
+    Inc[I0_ind] += Inc_init 
 
     model = SEIRMetaModelOneStep(
         S = S,
         E = fill(0, n_site),
-        I = I,
+        Ic = Ic,
+        Inc = Inc,
         R = fill(0, n_site),
         A = fill(0, n_site, 6),
         Z_A5_6 = 0,
@@ -133,21 +155,24 @@ function update_model(
         params::SEIRMetaModelParams
     )::SEIRMetaModelOneStep
 
-    @unpack γ1, γ2, σ, μ, P_AFP, days, β, N_tot, N_unvac, π_mat, α = params
-    @unpack S, E, I, R, A = model
+    @unpack γ1, γ2, σ, μ, P_AFP, days, β, N_tot, N_unvac, π_mat, α, n_site, pc = params
+    @unpack S, E, Ic, Inc, R, A = model
 
     new_born = rand_binom.(N_unvac, μ)
-    ext = sum(π_mat .* I', dims=2)[:, 1]
-    λ = β./N_tot.*( (1-α) .* I .+ α.*ext)
+    ext = sum(π_mat' .* (Ic .+ Inc)', dims=2)[:, 1]
+    λ = β./N_tot.*( (1-α) .* (Ic + Inc) .+ α.*ext)
 
     rem_S = rand_binom.(S, 1 .- exp.(-λ .- μ))
     new_E = rand_binom.(rem_S, λ./(λ .+ μ))
 
     rem_E = rand_binom.(E, 1 .- exp(-γ1 - μ))
     new_I = rand_binom.(rem_E, γ1/(γ1 + μ))
+    new_Ic = rand_binom.(new_I, pc)
+    new_Inc = new_I .- new_Ic
 
-    rem_I = rand_binom.(I, 1 .- exp(-γ2 - μ))
-    new_R = rand_binom.(rem_I, γ2/(γ2 + μ))
+    rem_Ic = rand_binom.(Ic, 1 .- exp(-γ2 - μ))
+    rem_Inc = rand_binom.(Inc, 1 .- exp(-γ2 - μ))
+    new_R = rand_binom.(rem_Ic .+ rem_Inc, γ2/(γ2 + μ))
 
     new_AFP = fill(0, n_site, 6)
     new_AFP[:, 1] = rand_binom.(new_E, P_AFP)
@@ -158,8 +183,9 @@ function update_model(
 
     S .+= new_born .- rem_S
     E .+=          .+ new_E .- rem_E
-    I .+=                   .+ new_I .- rem_I
-    R .+=                            .+ new_R
+    Ic .+=                  .+ new_Ic  .- rem_Ic
+    Inc .+=                   .+ new_Inc .- rem_Inc
+    R .+=                              .+ new_R
 
     for i in 1:5
         A[:, i] .+= new_AFP[:, i] .- new_AFP[:, i+1]
@@ -167,16 +193,18 @@ function update_model(
     A[:, 6] .+= new_AFP[:, 6]
 
     model = SEIRMetaModelOneStep(
-        S=S, E=E, I=I, R=R, A=A,
+        S=S, E=E, Ic=Ic, Inc=Inc, R=R, A=A,
         Z_A5_6 = sum(new_AFP[:, 6]), Z_S_E=sum(new_E) .|> Int64,
     )
     return model
 end
 
-function run_sim(pars::SEIRMetaModelParams; rec_flag::Bool=false)
+function run_sim(pars::SEIRMetaModelParams; 
+        rec_flag::Bool=false, pattern=""
+        )
     @unpack γ1, γ2, σ, P_AFP, days = pars 
 
-    rec, model = initialize_model(pars, rec_flag)
+    rec, model = initialize_model(pars, rec_flag, pattern=pattern)
 
     t_extinct = NaN
     R_final_num = NaN
@@ -184,7 +212,7 @@ function run_sim(pars::SEIRMetaModelParams; rec_flag::Bool=false)
     
     for t in 2:days
         # Stop condition
-        if sum(model.E) + sum(model.I) + sum(model.A[:, 1:5]) == 0
+        if sum(model.E) + sum(model.Ic) + sum(model.Inc) + sum(model.A[:, 1:5]) == 0
             t_extinct = isnan(t_extinct) == true ? t : t_extinct
             if rec_flag == true
                 set_values!(rec, model, t)
@@ -263,13 +291,13 @@ function heatmap_meta_pop(I::Matrix{Int64})
     return pl
 end
 
-function run_and_save_sim(pars::SEIRMetaModelParams, ; n_sim=10)
+function run_and_save_sim(pars::SEIRMetaModelParams; n_sim=10, pattern="")
     now_str = get_today_time()
     path = "../dt_tmp/$now_str"
     mkdir(path)
     println(path)
     @showprogress for i in 1:n_sim
-        res = run_sim(pars; rec_flag=true)
+        res = run_sim(pars; rec_flag=true, pattern=pattern)
         serialize("$(path)/$(i).ser", res)
     end
     return path
@@ -380,7 +408,7 @@ function sensitivity_ES_catchment_area(
 
     sens_index = obtain_ES_sensitivity_index(res.pars.N_tot, 0.01) # 1% increment.
     for ind_site in sens_index
-        area = fill(0, n_site)
+        area = fill(0, res.pars.n_site)
         area[1:ind_site] .= 1
         par_ES.area = area
         t_ES = enviro_surveillance(rec, par_ES)
@@ -715,3 +743,122 @@ function part_plot_early_det(pl, df_res::DataFrame, col; label="", kargs...)
         kargs...
     )
 end
+
+"""
+    Following functions are to visualise the heatmap including "only" patterns.
+    - create_lead_time_category
+    - proportion_each_cate_by_group
+    - discretise_balance_color
+    - visualise_heatmap_include_only
+    - add_reverse_order_legend!
+"""
+function create_lead_time_category(df_res::DataFrame)::Tuple{DataFrame, Vector}
+    # Replace NaN with Inf for t_AFP and t_ES
+    df_res.t_AFP = ifelse.(isnan.(df_res.t_AFP), Inf, df_res.t_AFP)
+    df_res.t_ES = ifelse.(isnan.(df_res.t_ES), Inf, df_res.t_ES)
+
+    # Calculate the lead_time
+    df_res.lead_time = df_res.t_AFP .- df_res.t_ES
+    df_fil = filter(x -> !isnan.(x.lead_time), df_res)
+
+    # Use "extend" option for cut, and assin Inf as "ES only".
+    #bin_edges = [-Inf, -10_000, -150, -100, -50, 0, 50, 100, 150, 10_000, Inf]
+    #bin_labels = ["AFP surv. only", 
+    #    "<-150 LT", "-150 ~ -101 LT", "-100 ~ -49 LT", "-50 ~ -1 LT",
+    #    "0 ~ 49 LT", "50 ~ 99 LT",
+    #    "100 ~ 149 LT", ">=150 LT", 
+    #    "ES only"]
+    bin_edges = [-Inf, -10_000, -50, 0, 50, 10_000, Inf]
+    bin_labels = ["AFP only", "<-50", "-50- -1", "0-49", ">50", "ES only"]
+    df_fil.lead_time_category= cut(df_fil.lead_time, bin_edges, extend=true, labels=bin_labels)
+    return (df_fil, bin_labels)
+end
+
+function proportion_each_cate_by_group(df_fil::DataFrame, col::Symbol)::Tuple{Matrix, DataFrame}
+    # Group by "ind_site" and calculate the proportion
+    grp_prop = DataFrames.combine(groupby(df_fil, [col, :lead_time_category]), nrow => :count)
+    uni = grp_prop[:, col] |> unique
+    grp_p = DataFrame()
+    grp_50 = DataFrame()
+    for i in uni
+        dfM = filter(x -> x[col] == i, grp_prop)
+        dfM[!, :prop_cate] = dfM[:, :count]/ sum(dfM[:,:count])*100
+        grp_p = vcat(grp_p, dfM)
+
+        dfM = filter(x -> x[col] == i, df_fil)
+        cond = dfM[:, :lead_time] .< 0
+        prop_0 = nrow(dfM[cond, :])/nrow(dfM)*100
+        grp_50 = vcat(grp_50, DataFrame(col=>i, :prop_0=>prop_0))
+    end
+    grp_p = sort(grp_p, col)
+    grp_50 = sort(grp_50, col)
+    df_ind_per = DataFrame(col => df_fil[:, col] |> unique )
+    #grp_p = leftjoin(grp_p, df_ind_per, on=col)
+    grp_p_unstack = unstack(grp_p, col, :lead_time_category, :prop_cate) 
+    y = @pipe grp_p_unstack[:, bin_labels] |> Matrix .|> coalesce(_, 0.0)
+    return (y, grp_50)
+end
+
+function discretise_balance_color(bin_labels::Vector)
+    colors = cgrad(:balance, length(bin_labels), categorical = true, rev=true)
+    colors = reshape([colors[i] for i in 1:length(colors)], 1,:)
+    colors
+end
+
+function visualise_heatmap_include_only(x, y, grp_50, bin_labels)
+    colors = discretise_balance_color(bin_labels)
+    pl = areaplot(x, y, size=(800,600), label=nothing, fillalpha = [0.85 0.85], color=colors)
+    plot!(x, grp_50[:, :prop_0], color="black", label=nothing, lw=1.5, 
+        marker=:circle, markersize=3, markerstrokewidth = 0,
+    )
+    #ls=:dashdot)
+    pl
+end
+
+function add_reverse_order_legend!(pl::Plots.Plot, bin_labels::Vector)
+    # for color adjusting.
+    colors = discretise_balance_color(bin_labels)
+    areaplot!(pl, 1, reshape([0 for i in 1:length(bin_labels)], 1, :),
+        label=reshape(reverse(bin_labels), 1, :), 
+        color=reverse(colors)) 
+end
+
+function df_to_heatmap(df_res::DataFrame, x, col; 
+        xticks=:none, add_zero::Bool=false, pc=1.0
+        )
+    df_fil, bin_labels = create_lead_time_category(df_res)
+    colors = discretise_balance_color(bin_labels)
+    y, grp_50 = proportion_each_cate_by_group(df_fil, col) 
+    if add_zero == true
+        n_cate = size(y)[2]
+        y0 = hcat([100], fill(0, 1, n_cate-1))
+        y = vcat(y0, y)
+        grp_50 = vcat(DataFrame(Dict(col=>0, :prop_0 => 100)), grp_50)
+        x = vcat([0], x)     
+    end
+
+    pl = visualise_heatmap_include_only(x, y, grp_50, bin_labels)
+    ticks= [0, 20, 40 ,60, 80, 100]
+    hline!(pl, ticks, color=:white, alpha=0.5, ls=:dash, label=:none)
+    if (col == :ind_site)  & (maximum(x) <= 100)
+        ticks_scaled = Int64.(pc.*ticks)
+        plot!(pl, xticks=(ticks, ticks_scaled), yticks=(ticks, ticks), 
+            xlim=[0,100], ylim=[0,100],
+        )
+        vline!(pl, ticks, color=:white, alpha=0.5, ls=:dash, label=:none) 
+    end
+    if xticks != :none
+        plot!(pl, xticks=(xticks, xticks), yticks=(ticks, ticks),
+            ylim=[0, 100],
+        )
+        vline!(pl, xticks, color=:white, alpha=0.5, ls=:dash, label=:none) 
+    end
+    return pl
+end
+
+@doc (@doc create_lead_time_category) proportion_each_cate_by_group, 
+    discretise_balance_color, 
+    visualise_heatmap_include_only, 
+    create_reverse_order_legend!,
+    df_to_heatmap
+
