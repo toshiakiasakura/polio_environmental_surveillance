@@ -29,6 +29,7 @@ using Serialization
 
 include("util.jl")
 include("model_meta_pop.jl")
+include("visualise_fig.jl")
 # -
 
 # ## Baseline for 5000
@@ -56,9 +57,31 @@ path_lis_α = [
 # -
 
 path_res1 = "../dt_tmp_res/20231112_005011.ser" # 5000 samples
-path_res2 = "../dt_tmp_res/20231112_015655.ser" # 5000 samples
+path_res2 = "../dt_tmp_res/20231114_211615.ser" # Importation is radiation
 path_res3 = "../dt_tmp_res/20231112_043848.ser" # 5000 samples
 
+path_res1_moz = "../dt_tmp_res/20231117_111513.ser"
+path_res2_moz = "../dt_tmp_res/20231117_125438.ser"
+path_res3_moz = "../dt_tmp_res/20231117_162723.ser"
+
+# +
+path_R10 = "../dt_tmp_res/20231117_101212.ser"
+path_R12 = "../dt_tmp_res/20231117_122254.ser"
+path_R16 = "../dt_tmp_res/20231117_152940.ser"
+
+path_α0005 = "../dt_tmp_res/20231117_172755.ser" # 5000 simulations, R0=14.0, α=0.005, 
+path_α001 = "../dt_tmp_res/20231117_191759.ser" # 5000 simulations, R0=14.0, α=0.01,
+path_α01= "../dt_tmp_res/20231117_215227.ser" # 5000 simulations, R0=14.0, α=0.1, 
+path_α05 = "../dt_tmp_res/20231118_013048.ser" # 5000 simulations, R0=14.0, α=0.5, 
+
+path_pc1 = "../dt_tmp_res/20231121_232432.ser"
+path_lis_R0 = [
+    path_R10, path_R12, path_res1, path_R16
+]
+path_lis_α = [
+    path_α0005, path_α001, path_res1, path_α01, path_α05
+]
+# -
 path = path_α05
 path = path_res1
 path_params, res_all1 = deserialize(path)
@@ -89,141 +112,52 @@ res.pars |> dump
 
 include("model_meta_pop.jl")
 
-per_pop = cumsum(sp_pars.pop)/sum(sp_pars.pop)*100
-sens_index = obtain_ES_sensitivity_index(sp_pars.pop, 0.01)
-x_per_pop =  per_pop[sens_index]
-nothing
+include("visualise_fig.jl")
 
-path_params, res_all1 = deserialize(path_res1)
-df_res1, df_res2, df_res3 = res_all1
-df_res = df_res3 # ES population coverage 
-# ES population coverage
-nothing
+path_spatial = "../dt_tmp/spatial_params_agg230.ser"
 
-include("model_meta_pop.jl")
+check_single_percentage(path_res1)
 
-df_fil, bin_labels = create_lead_time_category(df_res)
-nothing
+single_figure(path_spatial, path_res1; x_var="coverage")
 
-pl = df_to_heatmap(df_res, x_per_pop, :ind_site; add_zero=true)
-add_reverse_order_legend!(pl, bin_labels)
-plot!(pl, 
-    left_margin=5Plots.mm, right_margin=40Plots.mm, 
-    xlabel="ES population coverage (%)",
-    ylabel="Proportion (%)", 
-    xlabelfontsize=14, ylabelfontsize=14,
+single_figure(path_spatial, path_res1; x_var="site", 
+    xlim=[0,90]
 )
-plot!(pl, legend=(1.1, 0.9), dpi=300, fmt=:png)
-display(pl)
 
-pl = df_to_heatmap(df_res, sens_index, :ind_site; add_zero=true)
-plot!(xlabel="Number of ES covered sites", ylabel="Proportion (%)", xlim=[0,100])
+
 
 # ## Multiple Figures 
 
 include("model_meta_pop.jl")
+include("visualise_fig.jl")
 
-path_params1, res_all1 = deserialize(path_res1)
-path_params2, res_all2 = deserialize(path_res2)
-path_params3, res_all3 = deserialize(path_res3)
-println(path_params1)
-nothing
+three_scenario_results(path_spatial, path_res1, path_res2, path_res3; x_var="coverage")
 
-paths = fetch_sim_paths(path_params1)
-res = deserialize(paths[1])
-pc = res.pars.pc
+three_scenario_results(path_spatial, path_res1, path_res2, path_res3; 
+    x_var="site", xlim=[0,100],
+)
 
-pc=0.25
 
-pl1 = df_to_heatmap(res_all1[3], x_per_pop, :ind_site; 
-    add_zero=true, pc=pc)
-plot!(pl1, 
-    xlabel="ES population coverage (%)",
-    ylabel="Proportion (%)",
-    title="Population size scenario",
-    left_margin=5Plots.mm, 
-)
-pl2 = df_to_heatmap(res_all2[3], x_per_pop, :ind_site; 
-    add_zero=true, pc=pc)
-plot!(pl2, 
-    xlabel="ES population coverage (%)",
-    #title="Airport scenario", 
-    tmargin=50Plots.mm
-)
-airport_cov = per_pop[[11, 7, 62]]
-for cov in airport_cov
-    annotate!(cov, 100, text("↓", :bottom, 20, :black))
-end
-pl3 = df_to_heatmap(res_all3[3], x_per_pop, :ind_site; 
-    add_zero=true, pc=pc)
-plot!(pl3, 
-    xlabel="ES population coverage (%)",
-    #right_margin=40Plots.mm, 
-    ylabel="Proportion (%)",
-    title="Mozambique scenario",
-)
-pl4 = plot(showaxis = false, foreground_color_grid=:white,
-    legend=(0.1, 0.9),
-)
-add_reverse_order_legend!(pl4, bin_labels)
-pls = [pl1, pl2, pl3, pl4]
-l = @layout [a b; c d]
-pl = plot(pls..., 
-    layout=l, dpi=300,
-    bottom_margin=5Plots.mm,
-    xtickfontsize=10, ytickfontsize=10,
-)
-plot!(pl, size=(1000, 700), fmt=:png)
 
-include("model_meta_pop.jl")
 
-# +
-xlim = [0, 100]
-xticks = [0, 20, 40, 60, 80, 100]
-pl1 = df_to_heatmap(res_all1[3], sens_index, :ind_site; 
-    add_zero=true, xticks=xticks)
-plot!(pl1, 
-    xlabel="Number of ES covered sites",
-    ylabel="Proportion (%)",
-    title="Population size scenario",
-    left_margin=5Plots.mm, 
-    xlim=xlim,
-    
-)
-pl2 = df_to_heatmap(res_all2[3], sens_index, :ind_site; 
-    add_zero=true, xticks=xticks)
-plot!(pl2, 
-    xlabel="Number of ES covered sites",
-    #title="Airport scenario", 
-    tmargin=50Plots.mm,
-    xlim=xlim,
-)
-airport_cov = [11, 7, 62]
-for cov in airport_cov
-    annotate!(cov, 100, text("↓", :bottom, 20, :black))
-end
-pl3 = df_to_heatmap(res_all3[3], sens_index, :ind_site; 
-    add_zero=true, xticks=xticks)
-plot!(pl3, 
-    xlabel="Number of ES covered sites",
-    #right_margin=40Plots.mm, 
-    ylabel="Proportion (%)",
-    title="Mozambique scenario",
-    xlim=xlim,
-)
-pl4 = plot(showaxis = false, foreground_color_grid=:white,
-    legend=(0.1, 0.9),
-)
-add_reverse_order_legend!(pl4, bin_labels)
-pls = [pl1, pl2, pl3, pl4]
-l = @layout [a b; c d]
-pl = plot(pls..., 
-    layout=l, dpi=300,
-    bottom_margin=5Plots.mm,
-    xtickfontsize=10, ytickfontsize=10,
-)
-plot!(pl, size=(1000, 700), fmt=:png)
-# -
+
+# ## Mozambique scenario 
+
+path_spatial_sorted = "../dt_tmp/spatial_params_agg230_moz_sorted.ser"
+
+three_scenario_results(
+    path_spatial_sorted, 
+    path_res1_moz,  path_res2_moz,  path_res3_moz; 
+    x_var="coverage", airport_order="mozambique")
+
+include("visualise_fig.jl")
+
+three_scenario_results(
+    path_spatial_sorted, 
+    path_res1_moz, path_res2_moz, path_res3_moz; 
+    x_var="site", xlim=[0,100], airport_order="mozambique")
+
+
 
 # ## Susceptible population
 
@@ -245,6 +179,11 @@ plot!(pl1,
 # ## Sampling frequency and detection probabilities
 
 include("model_meta_pop.jl")
+
+sp_pars = deserialize(path_spatial)
+per_pop = cumsum(sp_pars.pop)/sum(sp_pars.pop)*100
+sens_index = obtain_ES_sensitivity_index(sp_pars.pop, 0.01)
+nothing
 
 #path_res1 = "../dt_tmp_res/20230719_175720.ser" # 2000 simulations, R0=14.0, α=0.05, 
 path_params, res_all1 = deserialize(path_res1)
@@ -288,9 +227,11 @@ for (i, path) in enumerate(path_lis_R0)
     _, _, pars = deserialize(path_params * "/1.ser") 
     R0 = round(pars.R0, digits=2)
     
-    pl = df_to_heatmap(res_all1[3], x_per_pop, :ind_site)
+    #pl = df_to_heatmap(res_all1[3], x_per_pop, :ind_site)
+    pl = df_to_heatmap(res_all1[3], sens_index, :ind_site)
     ylabel =  (i % 2 == 1) ? "Proportion (%)" : ""
-    xlabel =  (i > 2) ? "ES population coverage (%)" : ""
+    #xlabel =  (i > 2) ? "ES population coverage (%)" : ""
+    xlabel =  (i > 2) ? "Number of ES covered sites" : ""
     bottom_margin = (i > 2) ? 5Plots.mm : 5Plots.mm
     plot!(pl, 
         left_margin=5Plots.mm, 
@@ -298,6 +239,7 @@ for (i, path) in enumerate(path_lis_R0)
         ylabel=ylabel,
         titlefontsize=12,
         bottom_margin=bottom_margin,
+        xlim=[0,90],
     )
     annotate!(pl, (0.9, 0.9), text("R0=$(R0)", :white, :right), fontsize=12, fontcolor="white")
     push!(pls, pl)
@@ -314,14 +256,18 @@ for (i, path) in enumerate(path_lis_α)
     _, _, pars = deserialize(path_params * "/1.ser") 
     α = round(pars.α, digits=3)
     
-    pl = df_to_heatmap(res_all1[3], x_per_pop, :ind_site)
+    #pl = df_to_heatmap(res_all1[3], x_per_pop, :ind_site; add_zero=true,)
+    pl = df_to_heatmap(res_all1[3], sens_index, :ind_site; add_zero=true)
     ylabel =  (i % 2 == 1) ? "Proportion (%)" : ""
-    xlabel =  (i > 2) ? "ES population coverage (%)" : ""
+    #xlabel =  (i > 2) ? "ES population coverage (%)" : ""
+    #xlabel =  "ES population coverage (%)" 
+    xlabel =  "Number of ES covered sites"
     plot!(pl, 
         left_margin=5Plots.mm, 
         xlabel=xlabel,
         ylabel=ylabel,
         titlefontsize=12,
+        xlim=[0,90],
     )
     annotate!(pl, (0.9, 0.9), text(f"α={α:.3f}", :white, :right), fontsize=12, fontcolor="white")
     #hline!(pl, [50], color=:black, linestyle=:dot, alpha=0.7, label=:none)
@@ -334,6 +280,15 @@ l = @layout [ a b; c d; e f]
 plot(pls..., 
     size=(1000,900),
     layout=l, fmt=:png
+)
+
+# ## pc sensitivity
+
+single_figure(path_spatial, path_pc1; x_var="coverage", 
+)
+
+single_figure(path_spatial, path_pc1; x_var="site", 
+    xlim=[0,90]
 )
 
 

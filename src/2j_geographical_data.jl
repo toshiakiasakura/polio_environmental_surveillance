@@ -33,27 +33,8 @@ include("model_meta_pop.jl")
 
 # # Vaccination coverage data
 
-# +
-path = "../data/zaf_OPV_HEXA_vaccine_coverage_2020.csv"
-df_vac = CSV.read(path, DataFrame)
-VE = 0.63
-VE1 = 1 - (1- VE)
-VE2 = 1 - (1 - VE)^2
-VE3 = 1 - (1 - VE)^3
-VE4 = 1 - (1 - VE)^4
-
-CV4 = df_vac.HEXA4
-CV3 = df_vac.HEXA3
-CV2 = df_vac.HEXA2 
-CV1 = df_vac.HEXA1 
-
-dif3 = [i < 0 ? 0.0 : i for i in CV3 .- CV4]
-dif2 = [i < 0 ? 0.0 : i for i in CV2 .- CV3]
-dif1 = [i < 0 ? 0.0 : i for i in CV1 .- CV2]
-EVP = CV4.*VE4 .+ dif3 .* VE3 .+ dif2 .* VE2 .+ dif1 .* VE1
-df_vac[!, "EVP"] = EVP
+df_vac = obtain_EVP()
 nothing
-# -
 
 describe(df_vac[:, "EVP"])
 
@@ -66,10 +47,23 @@ create_vaccination_coverage_map(df_geo)
 
 save_vaccination_coverage_data(df_vac)
 
+g = 0.23025
+I = 1:1000
+w = 1 .- exp.(-0.97.* g.*I)
+plot(log10.(I), w*100, xticks=([0,1,2,3],[1,10,100,1000]), label=false,
+    xlabel="Number of infections, I(t)", ylabel="Probability of detection, wi,t",
+    fmt=:png, fontsize=22
+)
+
 # ## Read WorldPop data
 
 path1 = "../data/zaf_f_5_2020_constrained.tif"
 path2 = "../data/zaf_m_5_2020_constrained.tif"
+
+pl = plot(framestyle=:none, fmt=:png, figsize=(800,600))
+add_zaf_borders!(pl)
+
+
 
 zaf_5_agg = merge_two_map_data(path1, path2)
 nothing

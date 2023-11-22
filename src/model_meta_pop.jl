@@ -110,7 +110,8 @@ function initialize_model(params::SEIRMetaModelParams, rec_flag::Bool;
         I0_ind = wsample(1:n_site, N_tot)
     elseif pattern == "airport"
         # For international airport introduction version.
-        I0_ind = wsample([11, 7, 62], [4_342_611, 1_156_996, 188_243])
+        #I0_ind = wsample([11, 7, 62], [4_342_611, 1_156_996, 188_243])
+        I0_ind = wsample(1:n_site, imp_ws)
     elseif pattern == "mozambique"
         I0_ind = wsample(1:n_site, imp_ws)
     else
@@ -164,6 +165,8 @@ function update_model(
 
     rem_S = rand_binom.(S, 1 .- exp.(-λ .- μ))
     new_E = rand_binom.(rem_S, λ./(λ .+ μ))
+    #new_E = rand_beta_binom.(S, 1 .- exp.(-λ), 1/5_000)
+    #rem_S = rand_binom.(S .- new_E, 1 .- exp.(-μ)) .+ new_E
 
     rem_E = rand_binom.(E, 1 .- exp(-γ1 - μ))
     new_I = rand_binom.(rem_E, γ1/(γ1 + μ))
@@ -768,8 +771,8 @@ function create_lead_time_category(df_res::DataFrame)::Tuple{DataFrame, Vector}
     #    "0 ~ 49 LT", "50 ~ 99 LT",
     #    "100 ~ 149 LT", ">=150 LT", 
     #    "ES only"]
-    bin_edges = [-Inf, -10_000, -50, 0, 50, 10_000, Inf]
-    bin_labels = ["AFP only", "<-50", "-50- -1", "0-49", ">50", "ES only"]
+    bin_edges = [-Inf, -10_000, -60, 0, 60, 10_000, Inf]
+    bin_labels = ["AFP only", "<-60 LT", "-60 ~ -1 LT", "0 ~ 59 LT", "≥60 LT", "ES only"]
     df_fil.lead_time_category= cut(df_fil.lead_time, bin_edges, extend=true, labels=bin_labels)
     return (df_fil, bin_labels)
 end
@@ -777,6 +780,7 @@ end
 function proportion_each_cate_by_group(df_fil::DataFrame, col::Symbol)::Tuple{Matrix, DataFrame}
     # Group by "ind_site" and calculate the proportion
     grp_prop = DataFrames.combine(groupby(df_fil, [col, :lead_time_category]), nrow => :count)
+    df_fil, bin_labels = create_lead_time_category(df_fil)
     uni = grp_prop[:, col] |> unique
     grp_p = DataFrame()
     grp_50 = DataFrame()
@@ -846,8 +850,13 @@ function df_to_heatmap(df_res::DataFrame, x, col;
             xlim=[0,100], ylim=[0,100],
         )
         vline!(pl, ticks, color=:white, alpha=0.5, ls=:dash, label=:none) 
-    end
-    if xticks != :none
+    elseif xticks != :none
+        plot!(pl, xticks=(xticks, xticks), yticks=(ticks, ticks),
+            ylim=[0, 100],
+        )
+        vline!(pl, xticks, color=:white, alpha=0.5, ls=:dash, label=:none) 
+    else
+        xticks = [0,20,40,60,80]
         plot!(pl, xticks=(xticks, xticks), yticks=(ticks, ticks),
             ylim=[0, 100],
         )

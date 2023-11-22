@@ -9,6 +9,7 @@ using ProgressMeter
 using Rasters
 using Serialization
 using Shapefile
+using SpecialFunctions
 using StatsPlots
 
 function rand_binom(n, p)::Int64
@@ -20,6 +21,14 @@ function rand_binom(n, p)::Int64
 end
 get_today_time() = @pipe now() |> Dates.format(_, "yyyymmdd_HHMMSS")
 
+function rand_beta_binom(n, p, ρ)::Int64
+    s = 1/ρ - 1
+    if (n == 0) | (p == 0)
+        return 0
+    else
+        return rand(BetaBinomial(n, p*s, (1-p)*s))
+    end
+end
 
 """
 # Arguments
@@ -170,4 +179,39 @@ function convert_daily_to_weekly_obs(I_obs::Array{Int64, 2}; index=1)
         I_obs7[:, i] = sum(I_obs[:, st:fin], dims=2)
     end
     return I_obs7
+end
+
+function obtain_EVP()
+    path = "../data/zaf_OPV_HEXA_vaccine_coverage_2020.csv"
+    df_vac = CSV.read(path, DataFrame)
+    VE = 0.63
+    VE1 = 1 - (1- VE)
+    VE2 = 1 - (1 - VE)^2
+    VE3 = 1 - (1 - VE)^3
+    VE4 = 1 - (1 - VE)^4
+
+    CV4 = df_vac.HEXA4
+    CV3 = df_vac.HEXA3
+    CV2 = df_vac.HEXA2 
+    CV1 = df_vac.HEXA1 
+
+    dif3 = [i < 0 ? 0.0 : i for i in CV3 .- CV4]
+    dif2 = [i < 0 ? 0.0 : i for i in CV2 .- CV3]
+    dif1 = [i < 0 ? 0.0 : i for i in CV1 .- CV2]
+    EVP = CV4.*VE4 .+ dif3 .* VE3 .+ dif2 .* VE2 .+ dif1 .* VE1
+    df_vac[!, "EVP"] = EVP
+    return df_vac
+end
+
+function borel_tanner_dist(x, R)
+    log_p = (x-2)*log(x)+(x-1)*log(R) - x*R - loggamma(x)
+    return exp(log_p)
+end
+
+function observe_more_than_y_cases_in_final_dist(y, R)
+    p = 1
+    for i in 1:y
+        p -= borel_tanner_dist(i, R)
+    end
+    return p
 end

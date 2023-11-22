@@ -111,9 +111,9 @@ function create_vaccination_coverage_map(df_geo::DataFrame)
     end
 
     # International airport stars
-    scatter!(pl, [28.2420, 18.6002, 31.1154], [-26.1282, -33.9705, -29.6087], marker=:star, 
-        markersize=6, color=["yellow", "lawngreen", "darkslategray1"], label=:none, 
-        markerstrokewidth=0.1)
+    #scatter!(pl, [28.2420, 18.6002, 31.1154], [-26.1282, -33.9705, -29.6087], marker=:star, 
+    #    markersize=6, color=["yellow", "lawngreen", "darkslategray1"], label=:none, 
+    #    markerstrokewidth=0.1)
     p2 = heatmap(rand(2,2), clims=(lower*100,100), framestyle=:none, 
         c=cgrad(amp), cbar=true, lims=(-1,0),
     )

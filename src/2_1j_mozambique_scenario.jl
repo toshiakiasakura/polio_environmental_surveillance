@@ -35,17 +35,17 @@ include("model_meta_pop.jl")
 
 path1 = "../data/zaf_f_5_2020_constrained.tif"
 path2 = "../data/zaf_m_5_2020_constrained.tif"
-
 zaf_5_agg = merge_two_map_data(path1, path2)
+## Draw population map
+#plot(zaf_5_agg, fmt=:png) |> display
+#df_zaf = raster_to_df(zaf_5_agg)
+#cut_validate_raster_dataframe!(df_zaf, cut_off_pop)
 nothing
 
-# Draw population map
-plot(zaf_5_agg, fmt=:png) |> display
+df_zaf = CSV.read("../res/table_pop_top.csv", DataFrame)
+nothing
 
 cut_off_pop = 100
-
-df_zaf = raster_to_df(zaf_5_agg)
-cut_validate_raster_dataframe!(df_zaf, cut_off_pop)
 
 path3 = "../data/moz_f_5_2020_constrained.tif"
 path4 = "../data/moz_m_5_2020_constrained.tif"
@@ -62,12 +62,14 @@ histogram(log10.(df_moz[:, :value])) |> display
 # ## Calculate probability of pi with two districts 
 
 # +
+
+cols = ["lon", "lat", "value", "cnt"]
 df_zaf[:, :cnt] .= "zaf"
 df_moz[:, :cnt] .= "moz"
 sort!(df_zaf, "value", rev=true) # to ensure the order is the same as other files.
 sort!(df_moz, "value", rev=true)
 
-df_mer = vcat(df_zaf, df_moz)
+df_mer = vcat(df_zaf[:, cols], df_moz)
 pop = df_mer[:, :value]
 mat = df_mer[:, [:lat, :lon]] |> Matrix
 
@@ -91,9 +93,9 @@ println("Imp weights vector length : $(length(imp_ws))")
 
 histogram(log10.(imp_ws))
 
-CSV.write("../data/imp_ws.csv",  Tables.table(imp_ws), writeheader=false)
+CSV.write("../data/imp_ws_moz.csv",  Tables.table(imp_ws), writeheader=false)
 
-imp_ws_read = CSV.read("../data/imp_ws.csv", DataFrame, header=false)[:,1]
+imp_ws_read = CSV.read("../data/imp_ws_moz.csv", DataFrame, header=false)[:,1]
 nothing
 
 dfM = copy(df_zaf)
@@ -110,9 +112,51 @@ pl = plot(zaf_map,
 )
 add_zaf_borders!(pl)
 
+# ## Calculate radiation model weighted Airport scenario
 
+df_zaf = CSV.read("../res/table_pop_top.csv", DataFrame)
+nothing
 
+pop = df_zaf[:, "value"] 
+mat = df_zaf[:, [:lat, :lon]] |> Matrix
+π_mat = calculate_probability_of_pi(pop, mat)
+nothing
 
+ind = [11, 7, 62] 
+weight = [4_342_611, 1_156_996, 188_243]
+π_mat[diagind(π_mat)] .= 1/6
+imp_prob = sum(π_mat[ind, :] .*weight, dims=1)[1, :]
+imp_prob = imp_prob/sum(imp_prob)
+CSV.write("../data/imp_ws_airport.csv",  Tables.table(imp_prob), writeheader=false)
+
+# ## Prepare Mozambique risk based simulation 
+
+imp_ws_moz= CSV.read("../data/imp_ws_moz.csv", DataFrame, header=false)[:,1]
+imp_ws_airport = CSV.read("../data/imp_ws_airport.csv", DataFrame, header=false)[:,1]
+nothing
+
+# +
+sort_inds = sortperm(imp_ws_moz, rev=true)
+imp_ws_moz_sorted = imp_ws_moz[sort_inds]
+CSV.write("../data/imp_ws_moz_sorted.csv",  Tables.table(imp_ws_moz_sorted), writeheader=false)
+
+imp_ws_airport_sorted = imp_ws_airport[sort_inds]
+CSV.write("../data/imp_ws_airport_sorted.csv",  Tables.table(imp_ws_airport_sorted), writeheader=false)
+
+df_zaf_sort = df_zaf[sort_inds, :]
+nothing
+# -
+
+pop = df_zaf_sort[:, :value]
+unvac = df_zaf_sort[:, :unvac]
+mat = df_zaf_sort[:, [:lat, :lon]] |> Matrix
+@time π_mat_moz = calculate_probability_of_pi(pop, mat)
+nothing
+
+spatial_p = (pop=pop, unvac=unvac, π_mat=π_mat_moz, df=df_zaf_sort)
+path = "../dt_tmp/spatial_params_agg230_moz_sorted.ser"
+println(path)
+serialize(path, spatial_p)
 
 
 
