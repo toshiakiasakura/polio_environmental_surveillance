@@ -61,7 +61,7 @@ println("argmin(dist): $(argmin(dist)), dist: $(dist[argmin(dist)])")
 
 # # Transmission model 
 
-n_sim = 10000
+n_sim = 5000
 
 R0 = 14.0
 α = 0.05
