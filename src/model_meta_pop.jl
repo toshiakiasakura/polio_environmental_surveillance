@@ -771,6 +771,8 @@ function create_lead_time_category(df_res::DataFrame)::Tuple{DataFrame, Vector}
     #    "0 ~ 49 LT", "50 ~ 99 LT",
     #    "100 ~ 149 LT", ">=150 LT", 
     #    "ES only"]
+    #bin_edges = [Inf, 10_000, 60, 0, -60, -10_000, -Inf]
+    #bin_labels = ["ES only", "≥60 LT", "0 ~ 59 LT", "-60 ~ -1 LT", "<-60 LT", "AFP only"]
     bin_edges = [-Inf, -10_000, -60, 0, 60, 10_000, Inf]
     bin_labels = ["AFP only", "<-60 LT", "-60 ~ -1 LT", "0 ~ 59 LT", "≥60 LT", "ES only"]
     df_fil.lead_time_category= cut(df_fil.lead_time, bin_edges, extend=true, labels=bin_labels)
@@ -799,12 +801,15 @@ function proportion_each_cate_by_group(df_fil::DataFrame, col::Symbol)::Tuple{Ma
     df_ind_per = DataFrame(col => df_fil[:, col] |> unique )
     #grp_p = leftjoin(grp_p, df_ind_per, on=col)
     grp_p_unstack = unstack(grp_p, col, :lead_time_category, :prop_cate) 
-    y = @pipe grp_p_unstack[:, bin_labels] |> Matrix .|> coalesce(_, 0.0)
+    # Reorder the heatmap 
+    order = bin_labels[end:-1:begin]
+    grp_50[:, :prop_0] .= 100 .- grp_50[:, :prop_0]
+    y = @pipe grp_p_unstack[:, order] |> Matrix .|> coalesce(_, 0.0)
     return (y, grp_50)
 end
 
 function discretise_balance_color(bin_labels::Vector)
-    colors = cgrad(:balance, length(bin_labels), categorical = true, rev=true)
+    colors = cgrad(:balance, length(bin_labels), categorical = true, rev=false)
     colors = reshape([colors[i] for i in 1:length(colors)], 1,:)
     colors
 end
@@ -823,7 +828,7 @@ function add_reverse_order_legend!(pl::Plots.Plot, bin_labels::Vector)
     # for color adjusting.
     colors = discretise_balance_color(bin_labels)
     areaplot!(pl, 1, reshape([0 for i in 1:length(bin_labels)], 1, :),
-        label=reshape(reverse(bin_labels), 1, :), 
+        label=reshape(bin_labels, 1, :), 
         color=reverse(colors)) 
 end
 
@@ -835,9 +840,9 @@ function df_to_heatmap(df_res::DataFrame, x, col;
     y, grp_50 = proportion_each_cate_by_group(df_fil, col) 
     if add_zero == true
         n_cate = size(y)[2]
-        y0 = hcat([100], fill(0, 1, n_cate-1))
+        y0 = hcat(fill(0, 1, n_cate-1), [100])
         y = vcat(y0, y)
-        grp_50 = vcat(DataFrame(Dict(col=>0, :prop_0 => 100)), grp_50)
+        grp_50 = vcat(DataFrame(Dict(col=>0, :prop_0 =>0)), grp_50)
         x = vcat([0], x)     
     end
 

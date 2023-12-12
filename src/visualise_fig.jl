@@ -11,9 +11,9 @@ function check_single_percentage(path_res)
     vs = values(tab1) |> collect
     tab = DataFrame(label=ks, value=vs)
     tab[:, :prop] = tab[:, :value]/sum(tab[:,:value])*100
-    tab |> display
     n_nan = size(dfM)[1] - sum(tab[:,:value]) 
     println("No detection simulations: $(n_nan)")
+    return tab
 end
 
 function single_figure(path_spatial, path_res; 
@@ -47,7 +47,7 @@ function single_figure(path_spatial, path_res;
     plot!(pl, 
         left_margin=5Plots.mm, right_margin=40Plots.mm, 
         xlabel=xlabel,
-        ylabel="Proportion (%)", 
+        ylabel="Probability of each pattern (%)", 
         xlabelfontsize=14, ylabelfontsize=14, tickfontsize=12,
         xlim=xlim, 
     )
@@ -84,7 +84,7 @@ function three_scenario_results(path_spatial, path_res1, path_res2, path_res3;
         add_zero=true, pc=pc)
     plot!(pl1, 
         xlabel=xlabel,
-        ylabel="Proportion (%)",
+        ylabel="Probability of each pattern (%)", 
         title="Population size scenario",
         left_margin=5Plots.mm, 
         xlim=xlim,
@@ -93,7 +93,7 @@ function three_scenario_results(path_spatial, path_res1, path_res2, path_res3;
         add_zero=true, pc=pc)
     plot!(pl2, 
         xlabel=xlabel,
-        #title="Airport scenario", 
+        title="Airport scenario", 
         tmargin=50Plots.mm,
         xlim=xlim,
     )
@@ -103,14 +103,15 @@ function three_scenario_results(path_spatial, path_res1, path_res2, path_res3;
         airport_cov = per_pop[[187,65, 435]] 
     end
     for cov in airport_cov
-        annotate!(pl2, cov, 100, text("↓", :bottom, 20, :black))
+        continue
+        #annotate!(pl2, cov, 100, text("↓", :bottom, 20, :black))
     end
     pl3 = df_to_heatmap(res_all3[3], x, :ind_site; 
         add_zero=true, pc=pc)
     plot!(pl3, 
         xlabel=xlabel,
         #right_margin=40Plots.mm, 
-        ylabel="Proportion (%)",
+        ylabel="Probability of each pattern (%)", 
         title="Mozambique scenario",
         xlim=xlim,
     )

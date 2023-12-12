@@ -40,7 +40,7 @@ function run_transmission_model(;
 end
 
 function set_par_AFP_ES(;
-        path_spatial_params="", pc=1.0
+        path_spatial_params="", pc=1.0, n_freq=30, g=:none
     ) 
     sp_pars = deserialize(path_spatial_params)
     n_site = length(sp_pars.pop)
@@ -48,8 +48,10 @@ function set_par_AFP_ES(;
     par_AFP = AFPSurParams()
     
     # Hazard rate
-    p = 0.9
-    g = - log(1-p)/10
+    if g == :none 
+        p = 0.9
+        g = - log(1-p)/10
+    end
     cov_rate = 0.0859/pc # ES coverage rate. (previously 0.5) 
     
     # Catchment area
@@ -62,7 +64,7 @@ function set_par_AFP_ES(;
     area = fill(0, n_site)
     area[1:cov50] .= 1
 
-    par_ES = ESParams(g=g, area=area)
+    par_ES = ESParams(g=g, area=area, n_freq=n_freq)
     
     dump(par_AFP)
     dump(par_ES) 

@@ -26,6 +26,7 @@ using Plots
 using PyFormattedStrings
 using Rasters
 using Serialization
+using StatsPlots
 
 include("util.jl")
 include("model_meta_pop.jl")
@@ -111,20 +112,37 @@ res.pars |> dump
 # ## Visualise main figures
 
 include("model_meta_pop.jl")
-
 include("visualise_fig.jl")
 
 path_spatial = "../dt_tmp/spatial_params_agg230.ser"
 
-check_single_percentage(path_res1)
+tab = check_single_percentage(path_res1)
+inds = [4, 5, 1, 3, 6, 2]
+tab = tab[inds,:]
+bin_labels = ["AFP only", "<-60 LT", "-60 ~ -1 LT", "0 ~ 59 LT", "≥60 LT", "ES only"]
+x_grouped = @pipe [x for x in tab[:,:prop]] |> reshape(_, 1, 6)
+colors = discretise_balance_color(bin_labels)
+groupedbar(x_grouped,
+    bar_position = :stack,
+    bar_width=0.7, 
+    xticks=(1.0, ""),
+    size=(300,600),
+    legend=(1.1,0.5),
+    right_margin=30Plots.mm,
+    left_margin=10Plots.mm,
+    labels=reshape(bin_labels, 1, 6),
+    color=colors[:, end:-1:begin],
+    ylabel="Probability of each pattern (%)",
+    ylabelfontsize=12,
+    ytickfontsize=12,
+    fmt=:png, dpi=200,
+    ) 
 
 single_figure(path_spatial, path_res1; x_var="coverage")
 
 single_figure(path_spatial, path_res1; x_var="site", 
     xlim=[0,90]
 )
-
-
 
 # ## Multiple Figures 
 
@@ -157,8 +175,6 @@ three_scenario_results(
     path_res1_moz, path_res2_moz, path_res3_moz; 
     x_var="site", xlim=[0,100], airport_order="mozambique")
 
-
-
 # ## Susceptible population
 
 path_params, res_all1 = deserialize(path_res_unvac)
@@ -175,6 +191,25 @@ plot!(pl1,
     ylabel="Proportion (%)",
     title="Susceptible order",
 )
+
+# # Sampling frequency
+
+# +
+path_freq1 = "../dt_tmp_res/20231125_231613.ser" # 5000 samples
+path_freq60 = "../dt_tmp_res/20231126_001339.ser" # 5000 samples
+
+# TODO: fil lthe value here.
+# -
+
+single_figure(path_spatial, path_freq1; x_var="site", 
+    xlim=[0,90]
+)
+
+single_figure(path_spatial, path_freq60; x_var="site", 
+    xlim=[0,90]
+)
+
+
 
 # ## Sampling frequency and detection probabilities
 
