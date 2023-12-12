@@ -8,6 +8,6 @@ ENV JULIA_PROJECT=/workdir
 RUN julia -e 'using Pkg; Pkg.activate(".")'
 COPY ./Manifest.toml Manifest.toml
 COPY ./Project.toml Project.toml
-RUN julia -e 'using Pkg; Pkg.instantiate()'
+#RUN julia -e 'using Pkg; Pkg.instantiate()'
 
-RUN pip install jupytext
+RUN pip install jupytext==1.14.7
