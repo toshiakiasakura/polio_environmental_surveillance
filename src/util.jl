@@ -215,3 +215,8 @@ function observe_more_than_y_cases_in_final_dist(y, R)
     end
     return p
 end
+
+_standard_normal = Normal()
+function probit_func(x::Float64; a::Float64=1.0, b::Float64=1.0)
+    return cdf(_standard_normal, a + b*x)
+end

@@ -19,23 +19,26 @@ struct SEIRModelParams
     N_tot::Int64
     N_unvac::Int64
     I0_init::Int64 
-    g::Float64 
     days::Int64
     ES_n_freq::Int64
     μ::Float64
     β::Float64
     pc::Float64
+    Pop_whole::Float64
+    ES_μ::Float64
+    ES_σ::Float64
     function SEIRModelParams(;
             R0=10.0, γ1=1/4.0, γ2=1/15.02, σ=0.329,
             P_AFP=1/200, P_H=0.9, 
             P_AFP_sample=0.53, P_AFP_test=0.97, P_ES_test=0.97,
-            N_tot=10000, N_unvac=1000, I0_init=1, g=0.23, 
-            ES_n_freq=30, days=365, μ=1/(5*365), pc=1.00
+            N_tot=10000, N_unvac=1000, I0_init=1, 
+            ES_n_freq=30, days=365, μ=1/(5*365), pc=1.00,
+            Pop_whole=100, ES_μ=1.31, ES_σ=1.49,
         )
         new(R0, γ1, γ2, σ, P_AFP, P_H, 
             P_AFP_sample, P_AFP_test, P_ES_test,
-            N_tot, N_unvac, I0_init, g, days, ES_n_freq, μ, R0*γ2,
-            pc
+            N_tot, N_unvac, I0_init, days, ES_n_freq, μ, R0*γ2,
+            pc, Pop_whole, ES_μ, ES_σ,
             )
     end
 end
@@ -150,7 +153,8 @@ function run_sim(params::SEIRModelParams;
         rec_flag::Bool=false, pattern=""
         )
     @unpack γ1, γ2, σ, P_AFP, P_H, P_AFP_sample, 
-            P_AFP_test, P_ES_test, days, ES_n_freq, g = params
+            P_AFP_test, P_ES_test, days, ES_n_freq, Pop_whole, ES_μ, ES_σ = params
+    lognorm = LogNormal(ES_μ, ES_σ)
 
     rec, model = initialize_model(params, rec_flag; pattern=pattern)
     # set ES scheudle
@@ -184,7 +188,7 @@ function run_sim(params::SEIRModelParams;
 
         # ES surveillance
         if isnan(t_ES) == true
-            ωt = 1 - exp(-g * model.Ic)
+            ωt = cdf(lognorm, model.Ic/Pop_whole*100_000)
             wt = rand_binom(nt[t], ωt*P_ES_test)
             t_ES = wt == 1 ? t : t_ES
         end

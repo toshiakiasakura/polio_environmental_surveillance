@@ -30,16 +30,21 @@ spatial_p = deserialize(path)
 @unpack pop, unvac, π_mat = spatial_p
 nothing
 
+# TODO: Update with the real one.
+prop_child = 5695/60_600
+
 w_pop_cov = mean((pop .- unvac)./pop, weights(pop))
 println(w_pop_cov)
 N_tot = 100_000
 N_unvac = round(N_tot * (1- w_pop_cov) )
-g = - log(1-0.9)/10
+Pop_whole = N_tot/prop_child
+nothing
 
 pars = SEIRModelParams(
     N_tot=N_tot, N_unvac=N_unvac, 
-    days=365*3, g=g, 
-    R0=14, pc=1.0
+    days=365*3,
+    R0=14, pc=1.0,
+    Pop_whole=Pop_whole
 )
 dump(pars)
 
@@ -49,11 +54,10 @@ Re0 = pars.R0 * (1-w_pop_cov)
 
 params_inc = SEIRModelParams(
     N_tot=N_tot, N_unvac=N_unvac, 
-    days=365*3, g=g, 
-    R0=14.0, I0_init=0
+    days=365*3,  
+    R0=14.0, I0_init=0,
+    Pop_whole=Pop_whole
 )
-
-include("model.jl")
 
 pl = plot(xlim=[0,40], #ylim=[0, 0.1], 
     xticks=[0, 7, 15, 21, 25, 33, 39], fmt=:png,
@@ -81,12 +85,12 @@ plot!(pl, 1:rec.days, rec.I, label="I")
 plot!(pl, 1:rec.days, rec.Z_A5_6*100, label="New AFP")
 plot!(pl, 1:rec.days, rec.R, label="R")
 
-function multiple_run(pars)
+function multiple_run(pars_)
     # Simulation part
     outcomes = []
     N_sim = 10000
     for i in 1:N_sim
-        rec, outcome = run_sim(pars; rec_flag=false)
+        rec, outcome = run_sim(pars_; rec_flag=false)
         push!(outcomes, outcome)
     end
     df = DataFrame(outcomes)
@@ -161,29 +165,131 @@ end
 
 pars = SEIRModelParams(
     N_tot=N_tot, N_unvac=N_unvac, 
-    days=365*3, g=g, 
-    R0=14, pc=1.0
+    days=365*3, 
+    R0=14, pc=1.0,
+    Pop_whole=Pop_whole
 )
 multiple_run_and_sim(pars)
 
 pars_pc25 = SEIRModelParams(
     N_tot=N_tot, N_unvac=N_unvac, 
-    days=365*3, g=g, 
-    R0=14, pc=0.25
+    days=365*3, 
+    R0=14, pc=0.25,
+    Pop_whole=Pop_whole, 
 )
 multiple_run_and_sim(pars_pc25)
 
-g = - log(1-0.9)/10
-pars = SEIRModelParams(
-    N_tot=N_tot, N_unvac=N_unvac, 
-    days=365*3, g=g, 
-    R0=14, pc=1.0
-)
+# # Effect of pc
+
+days = pars.days
+function plot_cum!(pl, df; label="", color=:blue)
+    cum_ES = cumulative_counts(df[:, "t_ES"], days; prop=true)
+    cum_AFP = cumulative_counts(df[:, "t_AFP"], days; prop=true)
+    plot!(pl, xlabel="Day", ylabel="Cumulative probability of first detection",
+        fmt=:png
+    )
+    plot!(pl, 1:days, cum_ES, label="ES $(label)", color=color)
+    plot!(pl, 1:days, cum_AFP, label="AFP $(label)", color=color, ls=:dash)
+end
+
+# +
+pl = plot()
+df = multiple_run(pars)
+plot_cum!(pl, df; label="pc100", color=:blue)
+
+df = multiple_run(pars_pc25)
+plot_cum!(pl, df; label="pc25", color=:red)
+# -
+
+# # Effect of population size 
+
+include("model.jl")
+
+N_tot = 100_000
 pars_pc25 = SEIRModelParams(
-    N_tot=N_tot, N_unvac=N_unvac, 
-    days=365*3, g=g, 
-    R0=14, pc=0.25
+    N_tot=N_tot, N_unvac=round(N_tot * (1- w_pop_cov) ), 
+    days=365*3, 
+    R0=14, pc=0.25,
+    Pop_whole=N_tot/prop_child,
 )
+N_tot = 10_000
+pars_10000 = SEIRModelParams(
+    N_tot=N_tot, N_unvac=round(N_tot * (1- w_pop_cov) ), 
+    days=365*3, 
+    R0=14, pc=0.25,
+    Pop_whole=N_tot/prop_child, 
+)
+N_tot = 1_000
+pars_1000 = SEIRModelParams(
+    N_tot=N_tot, N_unvac=round(N_tot * (1- w_pop_cov) ), 
+    days=365*3, 
+    R0=14, pc=0.25,
+    Pop_whole=N_tot/prop_child, 
+)
+
+dump(pars_pc25)
+
+# +
+pl = plot(fmt=:png)
+df = multiple_run(pars_pc25)
+plot_cum!(pl, df; label="N_tot=100_000", color=:blue)
+
+df = multiple_run(pars_10000)
+plot_cum!(pl, df; label="N_tot=10_000", color=:orange)
+
+df = multiple_run(pars_1000)
+plot_cum!(pl, df; label="N_tot=1_000", color=:red)
+
+# +
+
+rec, outcome = run_sim(pars_1000; rec_flag=true)
+plot(rec.S)
+plot!(rec.E)
+# -
+
+dump(pars_1000)
+
+pl = plot(fmt=:png)
+for i in 1:10
+    rec, outcome = run_sim(pars_pc25; rec_flag=true)
+    plot!(rec.S)
+end
+display(pl)
+
+pl = plot(fmt=:png)
+for i in 1:10
+    rec, outcome = run_sim(pars_1000; rec_flag=true)
+    plot!(rec.S)
+end
+display(pl)
+
+# +
+pl = plot(fmt=:png)
+for i in 1:10
+    rec, outcome = run_sim(pars_pc25; rec_flag=true)
+    plot!(cumsum(rec.E))
+end
+display(pl)
+
+pl = plot(fmt=:png)
+for i in 1:10
+    rec, outcome = run_sim(pars_1000; rec_flag=true)
+    plot!(cumsum(rec.E))
+end
+display(pl)
+# -
+
+rec, outcome = run_sim(pars_1000; rec_flag=true)
+plot(rec.Z_A5_6)
+plot!(rec.R)
+
+dump(rec)
+
+
+
+plot(res.S)
+
+
 
 # +
 df = multiple_run(pars)

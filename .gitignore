@@ -4,6 +4,7 @@
 *.swp
 ~*
 
+man/
 tmp/
 tmp_results/
 tmp_fix_results/
