@@ -23,8 +23,6 @@ using Plots
 
 # ## Log normal distribution 
 
-
-
 data_x = [3.7, 13]
 q = [0.5, 0.8]
 function f(x)

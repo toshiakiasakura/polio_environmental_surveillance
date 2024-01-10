@@ -76,7 +76,7 @@ display(pl)
 
 # # Check single run
 
-Random.seed!(8)
+Random.seed!(13)
 rec, outcome = run_sim(pars; rec_flag=true)
 println(outcome)
 pl = plot(xlim=[0,365*3], ylim=[0, 200])
@@ -219,15 +219,13 @@ pars_10000 = SEIRModelParams(
     R0=14, pc=0.25,
     Pop_whole=N_tot/prop_child, 
 )
-N_tot = 1_000
-pars_1000 = SEIRModelParams(
+N_tot = 5_000
+pars_5000 = SEIRModelParams(
     N_tot=N_tot, N_unvac=round(N_tot * (1- w_pop_cov) ), 
     days=365*3, 
     R0=14, pc=0.25,
     Pop_whole=N_tot/prop_child, 
 )
-
-dump(pars_pc25)
 
 # +
 pl = plot(fmt=:png)
@@ -237,17 +235,47 @@ plot_cum!(pl, df; label="N_tot=100_000", color=:blue)
 df = multiple_run(pars_10000)
 plot_cum!(pl, df; label="N_tot=10_000", color=:orange)
 
-df = multiple_run(pars_1000)
-plot_cum!(pl, df; label="N_tot=1_000", color=:red)
-
-# +
-
-rec, outcome = run_sim(pars_1000; rec_flag=true)
-plot(rec.S)
-plot!(rec.E)
+df = multiple_run(pars_5000)
+plot_cum!(pl, df; label="N_tot=5_000", color=:red)
 # -
 
-dump(pars_1000)
+include("model.jl")
+
+function obtain_detection_curve(pars)
+    prev_sum = []
+    for i in 1:5000
+        rec, outcome = run_sim(pars; rec_flag=true)
+        if isnan(outcome.t_ES) == false
+            prev =  rec.I[outcome.t_ES]/pars.Pop_whole*100_000
+            push!(prev_sum, prev)
+        end
+    end
+    lognorm = fit(LogNormal, Float64.(prev_sum))
+    return lognorm
+end
+
+
+lognorm_pc25 = obtain_detection_curve(pars_pc25)
+lognorm_10000 = obtain_detection_curve(pars_10000)
+lognorm_5000 = obtain_detection_curve(pars_5000)
+
+x = 0:30
+y_def = cdf(LogNormal(pars.ES_μ, pars.ES_σ), x)
+y_pc25 = cdf(lognorm_pc25, x)
+y_10000 = cdf(lognorm_10000, x)
+y_5000 = cdf(lognorm_1000, x)
+pl = plot(
+    xlabel="Infects per 100,000 individuals", 
+    ylabel="Probability of detection",
+    title="Refit with Infects/pop within grid (not coverage)",
+    fmt=:png,
+)
+plot!(x, y_def, label="default")
+plot!(x, y_pc25, label="Pop with 100,000")
+plot!(x, y_10000, label="Pop with 10,000")
+plot!(x, y_1000, label="Pop with 1,000")
+
+# ## Check the basic model behaviour
 
 pl = plot(fmt=:png)
 for i in 1:10
@@ -283,63 +311,6 @@ rec, outcome = run_sim(pars_1000; rec_flag=true)
 plot(rec.Z_A5_6)
 plot!(rec.R)
 
-dump(rec)
-
-
-
-plot(res.S)
-
-
-
-# +
-df = multiple_run(pars)
-days = pars.days
-cum_ES = cumulative_counts(df[:, "t_ES"], days; prop=true)
-cum_AFP = cumulative_counts(df[:, "t_AFP"], days; prop=true)
-pl = plot(xlabel="Day", ylabel="Cumulative probability of first detection",
-    fmt=:png
-)
-plot!(pl, 1:days, cum_ES, label="ES pc100")
-plot!(pl, 1:days, cum_AFP, label="AFP pc100")
-
-df = multiple_run(pars_pc25)
-cum_ES = cumulative_counts(df[:, "t_ES"], days; prop=true)
-cum_AFP = cumulative_counts(df[:, "t_AFP"], days; prop=true)
-
-plot!(pl, 1:days, cum_ES, label="ES pc25")
-plot!(pl, 1:days, cum_AFP, label="AFP pc25")
-# -
-
-g = - log(1-0.9)/100
-pars = SEIRModelParams(
-    N_tot=N_tot, N_unvac=N_unvac, 
-    days=365*3, g=g, 
-    R0=14, pc=1.0
-)
-pars_pc25 = SEIRModelParams(
-    N_tot=N_tot, N_unvac=N_unvac, 
-    days=365*3, g=g, 
-    R0=14, pc=0.25
-)
-
-# +
-df = multiple_run(pars)
-days = pars.days
-cum_ES = cumulative_counts(df[:, "t_ES"], days; prop=true)
-cum_AFP = cumulative_counts(df[:, "t_AFP"], days; prop=true)
-pl = plot(xlabel="Day", ylabel="Cumulative probability of first detection",
-    fmt=:png
-)
-plot!(pl, 1:days, cum_ES, label="ES pc100")
-plot!(pl, 1:days, cum_AFP, label="AFP pc100")
-
-df = multiple_run(pars_pc25)
-cum_ES = cumulative_counts(df[:, "t_ES"], days; prop=true)
-cum_AFP = cumulative_counts(df[:, "t_AFP"], days; prop=true)
-
-plot!(pl, 1:days, cum_ES, label="ES pc25")
-plot!(pl, 1:days, cum_AFP, label="AFP pc25")
-# -
 
 
 
