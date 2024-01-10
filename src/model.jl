@@ -21,6 +21,7 @@ struct SEIRModelParams
     I0_init::Int64 
     days::Int64
     ES_n_freq::Int64
+    μ::Float64
     β::Float64
     pc::Float64
     Pop_whole::Float64
@@ -31,12 +32,12 @@ struct SEIRModelParams
             P_AFP=1/200, P_H=0.9, 
             P_AFP_sample=0.53, P_AFP_test=0.97, P_ES_test=0.97,
             N_tot=10000, N_unvac=1000, I0_init=1, 
-            ES_n_freq=30, days=365, pc=1.00,
+            ES_n_freq=30, days=365, μ=1/(5+365), pc=1.00,
             Pop_whole=100, ES_μ=1.31, ES_σ=1.49,
         )
         new(R0, γ1, γ2, σ, P_AFP, P_H, 
             P_AFP_sample, P_AFP_test, P_ES_test,
-            N_tot, N_unvac, I0_init, days, ES_n_freq, R0*γ2,
+            N_tot, N_unvac, I0_init, days, ES_n_freq, μ,R0*γ2,
             pc, Pop_whole, ES_μ, ES_σ,
             )
     end
@@ -106,18 +107,22 @@ function update_model(
         params::SEIRModelParams
     )::SEIRModelOneStep
 
-    @unpack γ1, γ2, σ, P_AFP, days, β, N_tot, pc = params
+    @unpack γ1, γ2, σ, P_AFP, days, β, N_tot, N_unvac, μ, pc = params
     @unpack S, E, Ic, Inc, R, A = model
 
+    new_born = rand_binom(N_unvac, μ)
     p_inf = β/N_tot*(Ic + Inc)
-    new_E = rand_binom(S, 1 .- exp(- p_inf))
-    rem_E = rand_binom(E, 1 .- exp(-γ1))
-    new_Ic = rand_binom(rem_E, pc)
-    new_Inc = rem_E - new_Ic
+    rem_S = rand_binom(S, 1 .- exp(- p_inf- μ))
+    new_E = rand_binom(rem_S, p_inf/(p_inf + μ))
 
-    rem_Ic = rand_binom(Ic, 1 .- exp(- γ2))
-    rem_Inc = rand_binom(Inc, 1 .- exp(- γ2))
-    new_R = rem_Ic + rem_Inc
+    rem_E = rand_binom(E, 1 .- exp(-γ1 - μ))
+    new_I = rand_binom(rem_E, γ1/(γ1 + μ))
+    new_Ic = rand_binom(new_I, pc)
+    new_Inc = new_I - new_Ic
+
+    rem_Ic = rand_binom(Ic, 1 .- exp(- γ2 - μ))
+    rem_Inc = rand_binom(Inc, 1 .- exp(- γ2 - μ))
+    new_R = rand_binom(rem_Ic + rem_Inc, γ2/(γ2 + μ))
 
     new_AFP1 = rand_binom(new_E, P_AFP)
     new_AFP = [new_AFP1]
@@ -126,9 +131,9 @@ function update_model(
         push!(new_AFP, new_A_stage)
     end
 
-    S += - new_E
-    E += + new_E - rem_E
-    Ic +=        + new_Ic  - rem_Ic
+    S += new_born - rem_S
+    E +=          + new_E - rem_E
+    Ic +=                  + new_Ic  - rem_Ic
     Inc +=                 + new_Inc - rem_Inc
     R +=                             + new_R
 

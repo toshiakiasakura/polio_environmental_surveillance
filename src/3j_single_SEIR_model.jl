@@ -201,6 +201,12 @@ df = multiple_run(pars_pc25)
 plot_cum!(pl, df; label="pc25", color=:red)
 # -
 
+# # Effect of sensitivity 
+
+# +
+# TODO: Include different parameterisation. 
+# -
+
 # # Effect of population size 
 
 include("model.jl")
@@ -263,7 +269,7 @@ x = 0:30
 y_def = cdf(LogNormal(pars.ES_μ, pars.ES_σ), x)
 y_pc25 = cdf(lognorm_pc25, x)
 y_10000 = cdf(lognorm_10000, x)
-y_5000 = cdf(lognorm_1000, x)
+y_5000 = cdf(lognorm_5000, x)
 pl = plot(
     xlabel="Infects per 100,000 individuals", 
     ylabel="Probability of detection",
@@ -273,7 +279,7 @@ pl = plot(
 plot!(x, y_def, label="default")
 plot!(x, y_pc25, label="Pop with 100,000")
 plot!(x, y_10000, label="Pop with 10,000")
-plot!(x, y_1000, label="Pop with 1,000")
+plot!(x, y_5000, label="Pop with 5,000")
 
 # ## Check the basic model behaviour
 
@@ -286,30 +292,26 @@ display(pl)
 
 pl = plot(fmt=:png)
 for i in 1:10
-    rec, outcome = run_sim(pars_1000; rec_flag=true)
+    rec, outcome = run_sim(pars_5000; rec_flag=true)
     plot!(rec.S)
 end
 display(pl)
 
 # +
 pl = plot(fmt=:png)
-for i in 1:10
+for i in 1:50
     rec, outcome = run_sim(pars_pc25; rec_flag=true)
     plot!(cumsum(rec.E))
 end
 display(pl)
 
 pl = plot(fmt=:png)
-for i in 1:10
-    rec, outcome = run_sim(pars_1000; rec_flag=true)
+for i in 1:50
+    rec, outcome = run_sim(pars_5000; rec_flag=true)
     plot!(cumsum(rec.E))
 end
 display(pl)
 # -
-
-rec, outcome = run_sim(pars_1000; rec_flag=true)
-plot(rec.Z_A5_6)
-plot!(rec.R)
 
 
 
