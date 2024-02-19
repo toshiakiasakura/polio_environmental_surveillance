@@ -27,7 +27,7 @@ using Plots
 using Rasters
 using Shapefile
 
-include("util.jl")
+include("utils.jl")
 include("geo_ana.jl")
 include("model_meta_pop.jl")
 include("visualise_fig.jl")
@@ -57,7 +57,7 @@ prop_50 = fetch_early_det_50(path_res1)
 plot(sens_index, prop_50, xlim=[0,100])
 # -
 
-# # Distance and early detection prob. 
+# # Distance and early detection prob.
 
 include("visualise_fig.jl")
 
@@ -87,7 +87,7 @@ imp_ws_moz = CSV.read("../data/imp_ws_moz.csv", DataFrame, header=false)[:,1]
 nothing
 
 # +
-# For old airport pattern. 
+# For old airport pattern.
 #n_sites = pop |> length
 #ind_imp, inbound = [11, 7, 62], [4_342_611, 1_156_996, 188_243]
 #inbound = inbound/sum(inbound)
@@ -113,9 +113,9 @@ plot!(pl, d_sens_moz, prop_50_moz,  label="Mozambique scenario", marker=marker)
 display(pl)
 println("When the leap is observed aounrd index 5 to 6, it covers the iLembe district")
 
-# ## Outbreak potential and distance 
+# ## Outbreak potential and distance
 
-include("util.jl")
+include("utils.jl")
 
 n_obs = 10
 
@@ -166,7 +166,7 @@ plot!(pl, d_sens_moz, prop_50_moz,  label="Mozambique scenario", marker=marker)
 display(pl)
 println("When the leap is observed aounrd index 5 to 6, it covers the iLembe district")
 
-# ## This figure is difficult to be interpreted!  
+# ## This figure is difficult to be interpreted!
 
 # +
 pop = df_zaf[:, :value]
@@ -190,7 +190,7 @@ plot!(p_twin, per_pop_ind, d_sens_air, label="Airport scenario", linestyle=:dash
 plot!(pl, per_pop_ind, 100 .- prop_50_moz, label="", marker=:circle)
 plot!(p_twin, per_pop_ind, d_sens_moz, label="Mozambique scenario", linestyle=:dash)
 # -
-# ## Mozambique scenairo 
+# ## Mozambique scenairo
 
 path_spatial_sorted = "../dt_tmp/spatial_params_agg230_moz_sorted.ser"
 sp_pars = deserialize(path_spatial_sorted)
@@ -272,7 +272,7 @@ println("Extinction probability is matched with the sum of the Borel-Tanner dist
 
 
 
-# ## Calculate probability of pi with two districts 
+# ## Calculate probability of pi with two districts
 
 # +
 df_zaf[:, :cnt] .= "zaf"

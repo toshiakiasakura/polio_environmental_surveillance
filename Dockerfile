@@ -10,3 +10,7 @@ RUN rm -rf /opt/julia/registries && \
     git clone https://github.com/JuliaRegistries/General.git /opt/julia/registries
 
 RUN pip install jupytext==1.14.7
+
+COPY ./Project.toml ./Project.toml
+COPY ./Manifest.toml ./Manifest.toml
+RUN julia -e "using Pkg; Pkg.instantiate()"

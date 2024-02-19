@@ -1,49 +1,29 @@
-using Accessors
-using Parameters
-using ProtoStructs
-using Random
-using StatsBase
+include("utils.jl")
 
-include("util.jl")
-
-struct SEIRModelParams
-    R0::Float64 
-    γ1::Float64 
-    γ2::Float64
-    σ::Float64 
-    P_AFP::Float64 
-    P_H::Float64 
-    P_AFP_sample::Float64 
-    P_AFP_test::Float64 
-    P_ES_test::Float64
-    N_tot::Int64
+Base.@kwdef mutable struct SEIRModelParams
+    R0::Float64 = 10.0
+    γ1::Float64 = 1/4.0
+    γ2::Float64 = 1/15.02
+    σ::Float64 = 0.329
+    P_AFP::Float64 = 1/200
+    P_H::Float64 = 0.9
+    P_AFP_sample::Float64 = 0.53
+    P_AFP_test::Float64 = 0.97
+    P_ES_test::Float64 = 0.97
+    N_tot::Int64 = 10_000
     N_unvac::Int64
-    I0_init::Int64 
-    days::Int64
-    ES_n_freq::Int64
-    μ::Float64
-    β::Float64
+    I0_init::Int64 = 1
+    days::Int64 = 365*3
+    ES_n_freq::Int64 = 30
+    μ::Float64 = 1/(5*365)
+    β::Float64 = R0 * γ2
     pc::Float64
     Pop_whole::Float64
-    ES_μ::Float64
-    ES_σ::Float64
-    function SEIRModelParams(;
-            R0=10.0, γ1=1/4.0, γ2=1/15.02, σ=0.329,
-            P_AFP=1/200, P_H=0.9, 
-            P_AFP_sample=0.53, P_AFP_test=0.97, P_ES_test=0.97,
-            N_tot=10000, N_unvac=1000, I0_init=1, 
-            ES_n_freq=30, days=365, μ=1/(5+365), pc=1.00,
-            Pop_whole=100, ES_μ=1.31, ES_σ=1.49,
-        )
-        new(R0, γ1, γ2, σ, P_AFP, P_H, 
-            P_AFP_sample, P_AFP_test, P_ES_test,
-            N_tot, N_unvac, I0_init, days, ES_n_freq, μ,R0*γ2,
-            pc, Pop_whole, ES_μ, ES_σ,
-            )
-    end
+    ES_μ::Float64 = 1.308
+    ES_σ::Float64 = 1.493
 end
 
-@proto struct SEIRModelRecord
+Base.@kwdef mutable struct SEIRModelRecord
     days::Int64
     S::Array{Int64, 1} = fill(-999, days)
     E::Array{Int64, 1} = fill(-999, days)
@@ -53,25 +33,25 @@ end
     Z_A5_6::Array{Int64, 1} = fill(-999, days)
 end
 
-@proto struct SEIRModelOneStep
+Base.@kwdef mutable struct SEIRModelOneStep
     S::Int64
     E::Int64
     Inc::Int64
     Ic::Int64
     R::Int64
-    A::Array{Int64, 1} 
+    A::Array{Int64, 1}
     Z_A5_6::Int64
 end
 
 function set_values!(
-        rec::SEIRModelRecord, 
-        model::SEIRModelOneStep, 
+        rec::SEIRModelRecord,
+        model::SEIRModelOneStep,
         ind::Int64
     )
     @unpack S, E, Inc, Ic, R, A, Z_A5_6 = model
     rec.S[ind] = S
     rec.E[ind] = E
-    rec.I[ind] = Ic + Inc
+    rec.I[ind] = Ic
     rec.R[ind] = R
     rec.A[ind, :] = A
     rec.Z_A5_6[ind] = Z_A5_6
@@ -103,7 +83,7 @@ function initialize_model(params::SEIRModelParams, rec_flag::Bool; pattern="")
 end
 
 function update_model(
-        model::SEIRModelOneStep, 
+        model::SEIRModelOneStep,
         params::SEIRModelParams
     )::SEIRModelOneStep
 
@@ -149,10 +129,10 @@ function update_model(
     return model
 end
 
-function run_sim(params::SEIRModelParams; 
+function run_sim(params::SEIRModelParams;
         rec_flag::Bool=false, pattern=""
         )
-    @unpack γ1, γ2, σ, P_AFP, P_H, P_AFP_sample, 
+    @unpack γ1, γ2, σ, P_AFP, P_H, P_AFP_sample, pc,
             P_AFP_test, P_ES_test, days, ES_n_freq, Pop_whole, ES_μ, ES_σ = params
     lognorm = LogNormal(ES_μ, ES_σ)
 
@@ -167,7 +147,7 @@ function run_sim(params::SEIRModelParams;
     t_AFP = NaN
     t_ES = NaN
     R_final = NaN
-    
+
     for t in 2:days
         # Stop condition
         if (model.E + model.Inc + model.Ic + sum(model.A)) == 0
@@ -188,7 +168,7 @@ function run_sim(params::SEIRModelParams;
 
         # ES surveillance
         if isnan(t_ES) == true
-            ωt = cdf(lognorm, model.Ic/Pop_whole*100_000)
+            ωt = cdf(lognorm, model.Ic/(Pop_whole*pc)*100_000)
             wt = rand_binom(nt[t], ωt*P_ES_test)
             t_ES = wt == 1 ? t : t_ES
         end
@@ -200,7 +180,7 @@ function run_sim(params::SEIRModelParams;
 
     end
     R_final_AFP = model.A[6]
-    outcome = (t_ES=t_ES, t_AFP=t_AFP, t_extinct=t_extinct, 
+    outcome = (t_ES=t_ES, t_AFP=t_AFP, t_extinct=t_extinct,
         R_final=R_final, R_final_AFP=R_final_AFP,
         )
     return (rec, outcome)

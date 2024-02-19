@@ -13,56 +13,33 @@
 #     name: julia-1.8
 # ---
 
-# +
-using ArchGDAL
-using CSV
-using ColorSchemes
-using DataFrames
-using Dates
-using GeoDataFrames
-import GeoDataFrames as GDF
-using Pipe
-using Plots
-using Rasters
-using Shapefile
-
-include("util.jl")
+include("utils.jl")
 include("geo_ana.jl")
 include("model_meta_pop.jl")
-# -
 
 # ## Read WorldPop data
 
-path1 = "../data/zaf_f_5_2020_constrained.tif"
-path2 = "../data/zaf_m_5_2020_constrained.tif"
-zaf_5_agg = merge_two_map_data(path1, path2)
-## Draw population map
-#plot(zaf_5_agg, fmt=:png) |> display
-#df_zaf = raster_to_df(zaf_5_agg)
-#cut_validate_raster_dataframe!(df_zaf, cut_off_pop)
+path = "../data_pop/zaf_merged_0_4.tif"
+zaf_0_4 = read(Raster(path))
+path = "../data_pop/moz_merged_0_4.tif"
+moz_0_4 = read(Raster(path))
 nothing
 
 df_zaf = CSV.read("../res/table_pop_top.csv", DataFrame)
 nothing
 
+plot(moz_0_4, fmt=:png) |> display
+
 cut_off_pop = 100
-
-path3 = "../data/moz_f_5_2020_constrained.tif"
-path4 = "../data/moz_m_5_2020_constrained.tif"
-
-moz_5_agg = merge_two_map_data(path3, path4)
-plot(moz_5_agg, fmt=:png) |> display
-
-df_moz = raster_to_df(moz_5_agg)
+df_moz = raster_to_df(moz_0_4)
 cut_validate_raster_dataframe!(df_moz, cut_off_pop)
 
-histogram(log10.(df_zaf[:, :value])) |> display
-histogram(log10.(df_moz[:, :value])) |> display
+histogram(log10.(df_zaf[:, :value]), title="zaf") |> display
+histogram(log10.(df_moz[:, :value]), title="moz") |> display
 
-# ## Calculate probability of pi with two districts 
+# ## Calculate probability of pi with two districts
 
 # +
-
 cols = ["lon", "lat", "value", "cnt"]
 df_zaf[:, :cnt] .= "zaf"
 df_moz[:, :cnt] .= "moz"
@@ -91,8 +68,9 @@ nothing
 
 println("Imp weights vector length : $(length(imp_ws))")
 
-histogram(log10.(imp_ws))
+histogram(log10.(imp_ws), title="Importation prob. from Mozambique")
 
+# a file for importation weights.
 CSV.write("../data/imp_ws_moz.csv",  Tables.table(imp_ws), writeheader=false)
 
 imp_ws_read = CSV.read("../data/imp_ws_moz.csv", DataFrame, header=false)[:,1]
@@ -100,7 +78,7 @@ nothing
 
 dfM = copy(df_zaf)
 dfM[:, :imp_ws] = imp_ws
-zaf_map = copy(zaf_5_agg)
+zaf_map = copy(zaf_0_4)
 zaf_map[:] .= 0
 for r in eachrow(dfM)
     zaf_map[At(r.lon), At(r.lat)] = log10.(r.imp_ws)
@@ -114,22 +92,53 @@ add_zaf_borders!(pl)
 
 # ## Calculate radiation model weighted Airport scenario
 
+include("utils.jl")
+
 df_zaf = CSV.read("../res/table_pop_top.csv", DataFrame)
 nothing
 
-pop = df_zaf[:, "value"] 
-mat = df_zaf[:, [:lat, :lon]] |> Matrix
-π_mat = calculate_probability_of_pi(pop, mat)
+sp_pars = read_spatial_params_file("ES_population_size")
 nothing
 
-ind = [11, 7, 62] 
-weight = [4_342_611, 1_156_996, 188_243]
+pop = sp_pars.df[:, "value"]
+mat = sp_pars.df[:, [:lat, :lon]] |> Matrix
+π_mat = sp_pars.π_mat
+df = sp_pars.df
+nothing
+
+# +
+# Tambo International
+lat = -26.12825796201514
+lon = 28.242074092511
+dist = harversine_dist.(lat, lon, df[:, :lat], df[:, :lon]) 
+println("argmin(dist): $(argmin(dist)), dist: $(dist[argmin(dist)])")
+
+# Cape Town 
+lat =  -33.970502228847884
+lon = 18.600228711334545
+dist = harversine_dist.(lat, lon, df[:, :lat], df[:, :lon]) 
+println("argmin(dist): $(argmin(dist)), dist: $(dist[argmin(dist)])")
+
+# King Shaka 
+lat =  -29.608764960536764
+lon = 31.115368797913593
+dist = harversine_dist.(lat, lon, df[:, :lat], df[:, :lon]) 
+println("argmin(dist): $(argmin(dist)), dist: $(dist[argmin(dist)])")
+
+
+
+# +
+ind = [10, 7, 61]
+weight = [4_342_611, 1_156_996, 188_243] # Travel volume
 π_mat[diagind(π_mat)] .= 1/6
 imp_prob = sum(π_mat[ind, :] .*weight, dims=1)[1, :]
 imp_prob = imp_prob/sum(imp_prob)
-CSV.write("../data/imp_ws_airport.csv",  Tables.table(imp_prob), writeheader=false)
 
-# ## Prepare Mozambique risk based simulation 
+# Importation probability in the airport introduction scenario. 
+CSV.write("../data/imp_ws_airport.csv",  Tables.table(imp_prob), writeheader=false)
+# -
+
+# ## Prepare Mozambique risk based simulation
 
 imp_ws_moz= CSV.read("../data/imp_ws_moz.csv", DataFrame, header=false)[:,1]
 imp_ws_airport = CSV.read("../data/imp_ws_airport.csv", DataFrame, header=false)[:,1]
@@ -154,9 +163,9 @@ mat = df_zaf_sort[:, [:lat, :lon]] |> Matrix
 nothing
 
 spatial_p = (pop=pop, unvac=unvac, π_mat=π_mat_moz, df=df_zaf_sort)
-path = "../dt_tmp/spatial_params_agg230_moz_sorted.ser"
+path = "../dt_tmp/spatial_params_agg230_moz_sorted.jld2"
 println(path)
-serialize(path, spatial_p)
+jldsave(path; data=spatial_p)
 
 
 

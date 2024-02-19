@@ -1,16 +1,10 @@
 using ArchGDAL
-using CSV
-using ColorSchemes
-using DataFrames
-using Dates
 using GeoDataFrames
 import GeoDataFrames as GDF
-using Pipe
-using Plots
 using Rasters
 using Shapefile
 
-include("util.jl")
+include("utils.jl")
 
 """
     harvesine_dist(ϕ1, λ1, ϕ2, λ2)::Float64
@@ -85,7 +79,7 @@ function calculate_probability_of_pi(pop::Vector, mat::Matrix)::Matrix
     s_mat = fill(0., n_point, n_point)
     for i in 1:n_point, j in 1:n_point
         d_i = d_mat[i, :]
-        cond = d_i .<= d_i[j] 
+        cond = d_i .<= d_i[j]
         # exclude the source and destination area.
         s_mat[i,j] = sum(pop[cond]) - pop[i] - pop[j]
     end
@@ -111,10 +105,10 @@ function create_vaccination_coverage_map(df_geo::DataFrame)
     end
 
     # International airport stars
-    #scatter!(pl, [28.2420, 18.6002, 31.1154], [-26.1282, -33.9705, -29.6087], marker=:star, 
-    #    markersize=6, color=["yellow", "lawngreen", "darkslategray1"], label=:none, 
+    #scatter!(pl, [28.2420, 18.6002, 31.1154], [-26.1282, -33.9705, -29.6087], marker=:star,
+    #    markersize=6, color=["yellow", "lawngreen", "darkslategray1"], label=:none,
     #    markerstrokewidth=0.1)
-    p2 = heatmap(rand(2,2), clims=(lower*100,100), framestyle=:none, 
+    p2 = heatmap(rand(2,2), clims=(lower*100,100), framestyle=:none,
         c=cgrad(amp), cbar=true, lims=(-1,0),
     )
     pl = plot(pl, p2, layout=l, right_margin=10Plots.mm, fmt=:png)
@@ -134,21 +128,35 @@ function save_vaccination_coverage_data(df_vac)
     CSV.write("../res/table_vaccine_coverage.csv", df_save)
 end
 
+function read_agg_map(path; agg_scale=230)::Raster
+    map_tmp = read(Raster(path))
+    map_tmp = replace_missing(map_tmp, 0)
+    map_agg = Rasters.aggregate(sum, map_tmp, agg_scale; skipmissingval=true)
+    return map_agg
+end
+
+function print_basic_map_info(map::Raster)::Nothing
+    nr, nc = size(map)
+    println("row: $nr, col: $nc, grid num: $(nr*nc)")
+    get_gridsize(map)
+    map |> sum |> println
+end
+
 function merge_two_map_data(path1, path2; agg_scale=230)
     #agg_scale = 110 # Latitude diff: 10.19 km, Longitude diff: 9.44 km
     #agg_scale = 230 # Latitude diff: 21.31 km, Longitude diff: 19.74 km
     f_5_zaf = read(Raster(path1))
     f_5_zaf = replace_missing(f_5_zaf, 0)
     plot(f_5_zaf) |> display
-    
+
     m_5_zaf = read(Raster(path2))
     m_5_zaf = replace_missing(m_5_zaf, 0)
     plot(m_5_zaf) |> display
-    
+
     m_5_zaf_agg = Rasters.aggregate(sum, m_5_zaf, agg_scale; skipmissingval=true)
     f_5_zaf_agg = Rasters.aggregate(sum, f_5_zaf, agg_scale; skipmissingval=true)
     zaf_5_agg = m_5_zaf_agg .+ f_5_zaf_agg
-    
+
     # Print basic info.
     nr, nc = size(zaf_5_agg)
     println("row: $nr, col: $nc, grid num: $(nr*nc)")
@@ -157,7 +165,7 @@ function merge_two_map_data(path1, path2; agg_scale=230)
     m_5_zaf |> sum |> println
     f_5_zaf |> sum |> println
     zaf_5_agg |> sum |> println
-    
+
     return zaf_5_agg
 end
 
@@ -165,7 +173,7 @@ function cut_validate_raster_dataframe!(df_ras::DataFrame, cut_off_pop)
     println("Original size: ",size(df_ras))
     df_ras[!, :value] = @pipe df_ras[:, :value] .|> round(_; digits=0)
     filter!(x -> x.value > 0.0, df_ras)
-    
+
     n_bf = df_ras[:, :value] |> sum
     println("Total population size before removing: ", n_bf)
     println("Before removing: ", size(df_ras))
@@ -180,7 +188,7 @@ function cut_validate_raster_dataframe!(df_ras::DataFrame)
     println("Original size: ",size(df_ras))
     df_ras[!, :value] = @pipe df_ras[:, :value] .|> round(_; digits=0)
     filter!(x -> x.value > 0.0, df_ras)
-    
+
     n_bf = df_ras[:, :value] |> sum
     println("Total population size before removing: ", n_bf)
     println("Before removing: ", size(df_ras))
@@ -222,18 +230,18 @@ function relate_df_ras_to_district_info(df_ras::DataFrame, df_geo::DataFrame)
         end
     end
     df_ras[!, "shapeName"] = dist
-    
-    # some of points are not classified. 
+
+    # some of points are not classified.
     n = (df_ras[:, "shapeName"] .== "not determined") |> sum
     println("Number of unclassified points: ",n)
-    
+
     # Check those points
     df_fil = filter(x -> x.shapeName == "not determined", df_ras)
     pl = plot()
     scatter!(pl, df_fil[:, :lon], df_fil[:, :lat], )
     add_zaf_borders!(pl)
     display(pl)
-    
+
     # Classify those points to nearest districts.
     for (i,r) in enumerate(eachrow(df_ras))
         if r.shapeName == "not determined"
@@ -252,21 +260,23 @@ function relate_df_ras_to_district_info(df_ras::DataFrame, df_geo::DataFrame)
     return df_ras
 end
 
-function visualise_unimmune(df_mer::DataFrame, map, title::String)
+function visualise_population(df_mer::DataFrame, col::Symbol,
+    map, title::String
+)
     map= copy(map)
     map[:] .= 0
     n = size(df_mer)[1]
     for i in 1:n
         x = df_mer[i, :lon]
         y = df_mer[i, :lat]
-        v = df_mer[i, :unvac] |> Int64
+        v = df_mer[i, col] |> Int64
         map[ At(x), At(y)] = v
     end
     pl = plot()
     plot!(map,
         xlim=[15,35], ylim=[-35, -21],
         axis=nothing, border=:none,
-        right_margins=8Plots.mm,
+        right_margins=9Plots.mm,
         #colorbar_title="log10(πij)",
         title=title,
     )

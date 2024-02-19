@@ -1,15 +1,22 @@
+#using Accessors
+using CategoricalArrays
+using CSV
+using DataFrames
 using Dates
 using Distributions
 using FreqTables
-using GeoDataFrames
+using Glob
 using Interpolations
+using JLD2
 using LinearAlgebra
+using Parameters
 using Pipe
 using ProgressMeter
-using Rasters
-using Serialization
-using Shapefile
+using Random
+#using Serialization
+using SparseArrays
 using SpecialFunctions
+using StatsBase
 using StatsPlots
 
 function rand_binom(n, p)::Int64
@@ -43,7 +50,7 @@ function relative_virus_shedding(days::Vector, virus::Vector)
     return Dict( x => y for (x,y) in zip(xs,ys) )
 end
 
-function hazard_function(I_new::Vector, gs::Dict, 
+function hazard_function(I_new::Vector, gs::Dict,
                          t::Int64; λ0=10)
     ind_end = minimum((100, t -1))
     λ = (I_new[t-s]*gs[s] for s in 0:ind_end) |> sum
@@ -94,7 +101,7 @@ function create_indicater_U(data:: Vector, days)
     N_sim = length(data)
     U = fill(0, N_sim, days)
     for (i,d) in enumerate(data)
-        if isnan(d) == true 
+        if isnan(d) == true
             d = days + 1
         end
         d = Int64(d)
@@ -142,13 +149,13 @@ function leadtime_diff(df::DataFrame)::Vector
     cond_df = isnan.(df[:, ["t_ES", "t_AFP"]]) .== false
     cond = cond_df[:, "t_ES"] .& cond_df[:, "t_AFP"]
     dfM = df[cond, :]
-    diff = dfM[:, "t_AFP"] - dfM[:, "t_ES"] 
+    diff = dfM[:, "t_AFP"] - dfM[:, "t_ES"]
     return diff
 end
 
 function leadtime_diff_statistics(diff::Vector)
     describe(diff)
-    n_delay = (diff .> 0) |> sum 
+    n_delay = (diff .> 0) |> sum
     print("\n% of early detect by ES: ", round(n_delay/length(diff)*100, digits=2))
     boxplot(diff, size=(300,500), fmt=:png) |> display
 end
@@ -162,8 +169,8 @@ function crosstab(df::DataFrame, row, col)::DataFrame
 end
 
 quantile_tuple(x) = (
-    q05=quantile(x, 0.05), 
-    q25=quantile(x, 0.25), 
+    q05=quantile(x, 0.05),
+    q25=quantile(x, 0.25),
     q50=quantile(x, 0.50),
     q75=quantile(x, 0.75),
     q95=quantile(x, 0.95),
@@ -174,7 +181,7 @@ function convert_daily_to_weekly_obs(I_obs::Array{Int64, 2}; index=1)
     n_sim = size(I_obs)[1]
     I_obs7 = fill(0, n_sim, n_point)
     for i in 1:n_point
-        st = index + (i-1)*7 
+        st = index + (i-1)*7
         fin = index - 1 + i*7
         I_obs7[:, i] = sum(I_obs[:, st:fin], dims=2)
     end
@@ -192,8 +199,8 @@ function obtain_EVP()
 
     CV4 = df_vac.HEXA4
     CV3 = df_vac.HEXA3
-    CV2 = df_vac.HEXA2 
-    CV1 = df_vac.HEXA1 
+    CV2 = df_vac.HEXA2
+    CV1 = df_vac.HEXA1
 
     dif3 = [i < 0 ? 0.0 : i for i in CV3 .- CV4]
     dif2 = [i < 0 ? 0.0 : i for i in CV2 .- CV3]
@@ -219,4 +226,27 @@ end
 _standard_normal = Normal()
 function probit_func(x::Float64; a::Float64=1.0, b::Float64=1.0)
     return cdf(_standard_normal, a + b*x)
+end
+
+"""Read the ES related spatial parameter file.
+This file choice is determined by the way to layout ES.
+
+Args:
+- `ES_pattern`: Takes `ES_population_size` or `ES_mozambique_imp_risk`
+
+"""
+function read_spatial_params_file(ES_pattern)
+    spatial_p = :none
+    if (ES_pattern == "ES_population_size")
+        path = "../dt_tmp/spatial_params_agg230.jld2"
+        spatial_p = load(path)["data"]
+    elseif ES_pattern == "ES_mozambique_imp_risk"
+        path = "../dt_tmp/spatial_params_agg230_moz_sorted.jld2"
+        spatial_p = load(path)["data"]
+    else
+        error("Specify type from the follwoing: "*
+        "ES_population_size, ES_ozambique_imp_risk"
+        )
+    end
+    return spatial_p
 end

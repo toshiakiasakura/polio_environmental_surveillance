@@ -12,6 +12,8 @@ dt_tmp_res/
 src_old/
 doc_ideas/
 doc_travel_south_africa/
+src/old_*.jl
+src/old_*.ipynb
 
 *.tif
 
@@ -24,7 +26,7 @@ dt_raster/
 
 .DS_Store
 
-# python 
+# python
 __pycache__/
 *.py[cod]
 *$py.class

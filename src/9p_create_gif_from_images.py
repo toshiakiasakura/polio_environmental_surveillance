@@ -16,7 +16,7 @@ import glob
 from PIL import Image
 
 # +
-fnames= [str(i).rjust(4, "0") + ".png" for i in range(1, 23)]
+fnames= [str(i).rjust(4, "0") + ".png" for i in range(1, 21)]
 
 frames = [Image.open("../dt_tmp/gif_map/" + f) for f in fnames ]
 frame_one = frames[0]
@@ -25,7 +25,7 @@ frame_one.save("../dt_tmp/gif_map/gif_map_pc25.gif", format="GIF", append_images
               )
 
 # +
-fnames= [str(i).rjust(4, "0") + ".png" for i in range(1, 18)]
+fnames= [str(i).rjust(4, "0") + ".png" for i in range(1, 16)]
 
 frames = [Image.open("../dt_tmp/gif_map/" + f) for f in fnames ]
 frame_one = frames[0]
@@ -34,7 +34,7 @@ frame_one.save("../dt_tmp/gif_map/gif_map_pc30.gif", format="GIF", append_images
               )
 
 # +
-fnames= [str(i).rjust(4, "0") + ".png" for i in range(1, 10)]
+fnames= [str(i).rjust(4, "0") + ".png" for i in range(1, 8)]
 
 frames = [Image.open("../dt_tmp/gif_map/" + f) for f in fnames ]
 frame_one = frames[0]
