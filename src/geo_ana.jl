@@ -45,14 +45,27 @@ function raster_to_df(ras::Raster)::DataFrame
     return df
 end
 
+function borders!(p, poly)
+    for i in 1:length(p)
+        plot!(p, poly; subplot=i, fillalpha=0, linewidth=0.6)
+    end
+    return p
+end
+
 function add_zaf_borders!(pl)
     path_shape = "../dt_geoBoundaries-ZAF-ADM2-all/geoBoundaries-ZAF-ADM2.shp"
-    function borders!(p, poly)
-        for i in 1:length(p)
-            plot!(p, poly; subplot=i, fillalpha=0, linewidth=0.6)
-        end
-        return p
-    end
+    shapes = Shapefile.Handle(path_shape)
+    borders!(pl, shapes)
+end
+
+function add_zaf_ADM0_borders!(pl)
+    path_shape = "../dt_geoBoundaries-ZAF-ADM0-all/geoBoundaries-ZAF-ADM0.shp"
+    shapes = Shapefile.Handle(path_shape)
+    borders!(pl, shapes)
+end
+
+function add_moz_borders!(pl)
+    path_shape = "../dt_geoBoundaries-MOZ-ADM0-all/geoBoundaries-MOZ-ADM0.shp"
     shapes = Shapefile.Handle(path_shape)
     borders!(pl, shapes)
 end

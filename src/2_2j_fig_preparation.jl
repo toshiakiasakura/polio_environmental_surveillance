@@ -28,7 +28,174 @@ path_zaf_0_4 = "../data_pop/zaf_merged_0_4.tif"
 zaf_0_4 = read(Raster(path_zaf_0_4))
 nothing
 
+# # Probability of importation for each scenario
+
+function visualise_importation_prob(df_mer; title::String = "", colorbar = true)
+    zaf_map = copy(zaf_0_4)
+    zaf_map[:] .= 0
+    n = size(df_mer)[1]
+    for i in 1:n
+        x = df_mer[i, :lon]
+        y = df_mer[i, :lat]
+        zaf_map[ At(x), At(y)] = log10.(df_mer[i, :imp_prob])
+    end
+    pl = plot()
+    plot!(zaf_map,
+        xlim=[15,35], ylim=[-35, -21],
+        axis=nothing, border=:none,
+        logscale=:log10,
+        #colorbar_title="log10(πij)",
+        title=title,
+        right_margin=5Plots.mm,
+        top_margin = 0Plots.mm,
+        colorbar = colorbar,
+        color = :matter,
+        clims = (-6.5, -0.5),
+        fmt=:png, dpi=200,
+    )
+    add_zaf_borders!(pl)
+    return pl
+end
+
+sp_pars = read_spatial_params_file("ES_population_size")
+imp_pop = normalize(sp_pars.pop, 1)
+imp_ws_moz = CSV.read("../data/imp_ws_moz.csv", DataFrame, header=false)[:,1]
+imp_ws_airport = CSV.read("../data/imp_ws_airport.csv", DataFrame, header=false)[:,1]
+nothing
+
+log10.(imp_pop) |> describe
+log10.(imp_ws_airport) |> describe
+log10.(imp_ws_moz) |> describe
+
+# +
+add_annotation!(pl, text_) =  annotate!(pl, 16, -22, text(text_, :black, :left, 18))
+
+df[:, :imp_prob] = imp_pop
+pl_pop = visualise_importation_prob(df; colorbar=false)
+add_annotation!(pl_pop, "A")
+
+df[:, :imp_prob] = imp_ws_airport
+pl_airport = visualise_importation_prob(df; colorbar=false)
+add_annotation!(pl_airport, "B")
+
+df[:, :imp_prob] = imp_ws_moz
+pl_moz = visualise_importation_prob(df; colorbar=false)
+add_annotation!(pl_moz, "C")
+layout = @layout [a b; c c]
+plot(pl_pop, pl_airport, pl_moz, layout=layout, 
+    fmt=:png, dpi=300, size=(1200, 800))
+# -
+
+df[:, :imp_prob] = imp_pop
+pl_pop = visualise_importation_prob(df; colorbar=true)
+
+# ## For figure 1 
+
+df[:, :imp_prob] = imp_pop
+pl_pop = visualise_importation_prob(df; colorbar=false)
+plot!(pl_pop, right_margin=-25Plots.mm)
+nothing
+
+# +
+# International airport information
+ind = [10, 7, 61]
+travel_volume = [4_342_611, 1_156_996, 188_243]
+#weight = normalize((travel_volume).^(1/2) , 1) # Travel volume
+weight = [0.7, 0.5, 0.3]
+cm = palette(:tab10)
+
+zaf_map = copy(zaf_0_4)
+zaf_map[:] .= 0
+pl_airport = plot()
+plot!(pl_airport, zaf_map,
+    xlim=[15,35], ylim=[-35, -21],
+    axis=nothing, border=:none,
+    logscale=:log10,
+    #colorbar_title="log10(πij)",
+    title="",
+    right_margin=-10Plots.mm,
+    top_margin = 0Plots.mm,
+    colorbar = false,
+    color = :matter,
+    clims = (-6.5, -0.5),
+    fmt=:png, dpi=200,
+)
+add_zaf_borders!(pl_airport)
+# Plot the internatinoal airport positions
+scatter!(pl_airport, df[ind, :lon], df[ind, :lat], 
+    label=false, color=cm[1:3], 
+    markershape=:circle,
+    markersize=weight*50, alpha=1,
+)
+
+nothing
+# -
+
+include("geo_ana.jl")
+
+pl_moz = plot()
+plot!(pl_moz, zaf_map,
+    axis=nothing, border=:none,
+    title="",
+    xlim=[15,45], ylim=[-35, -10],
+)
+add_zaf_ADM0_borders!(pl_moz)
+add_moz_borders!(pl_moz)
+scatter!(pl_moz, 
+    [24, 33, 40, 33], 
+    [-30, -15, -13, -22], 
+    label=false, color=cm[4],
+    markershape=:rect,
+    markersize=[12, 8, 8, 8],
+)
+nothing
+
+plot(pl_pop, pl_airport, pl_moz, 
+    fmt=:png, size=(1800, 600), dpi=150,
+    layout=@layout[a b c],
+)
+
+
+
+
+
+
+
+# ## Prepare ES layout for figure 1
+
+function plot_ES_covered_sites(
+    ES_pattern 
+)
+    spatial_p = read_spatial_params_file(ES_pattern)
+    df = spatial_p.df
+    
+    # Prepare data
+    zaf_map = copy(zaf_0_4)
+    zaf_map[:] .= 0
+    ind = l_ind:r_ind
+    for r in eachrow(df[ind,:])
+        zaf_map[ At(r.lon), At(r.lat)] = 100
+    end
+    pl = plot(zaf_map,
+        xlim=[15,35], ylim=[-35, -21],
+        color=:blue,
+        colorbar=false,
+        title="",
+        axis=nothing, border=:none,
+        dpi=100, fmt=:png, size=(1200,1200),
+    )
+    add_zaf_borders!(pl)
+    pl
+end
+
+pl_pop = plot_ES_covered_sites("ES_population_size")
+plot!(pl_pop, right_margin=-20Plots.mm)
+pl_moz = plot_ES_covered_sites("ES_mozambique_imp_risk")
+plot(pl_pop, pl_moz, fmt=:png, dpi=150, size=(1200,600))
+
 # ## Prepare multiple figures with ES coverage sites for gif
+
+
 
 # +
 # Prepare data
@@ -63,7 +230,7 @@ end
 # Make gif in python
 # -
 
-sum(sens_index .<= 33)
+sum(sens_index .<= 31)
 
 # These index are for gif creation process in python.
 # Use the maximum index for the inclusion criteria.
@@ -94,6 +261,7 @@ function visualise_probs(df_mer, ind::Int64, title::String)
         axis=nothing, border=:none,
         logscale=:log10,
         #colorbar_title="log10(πij)",
+        color=:matter,
         title=title,
     )
     add_zaf_borders!(pl)
@@ -137,7 +305,7 @@ l = @layout [
     e{0.3w} f
 ]
 pl = plot(pl1, pl2, pl3, pl4, pl5, pl6,
-    dpi=300, size=(800, 350 * 3),
+    dpi=300, size=(800, 350 * 3), fmt=:png,
     layout=l, left_margin=5Plots.mm,
 )
 display(pl)

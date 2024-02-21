@@ -6,7 +6,7 @@ Base.@kwdef mutable struct SEIRMetaModelParams
     γ2::Float64 = 1/15.02
     σ::Float64 = 0.3291
     P_AFP::Float64 = 1/200
-    N_tot::Vector{Int64}
+    Nc::Vector{Int64}
     N_unvac::Vector{Int64}
     I0_init::Int64 = 1
     I0_ind::Int64 = 1
@@ -83,9 +83,9 @@ end
 function initialize_model(params::SEIRMetaModelParams, rec_flag::Bool;
      pattern=""
      )
-    @unpack I0_init, n_site, N_tot, N_unvac, days, pc, imp_ws = params
+    @unpack I0_init, n_site, Nc, N_unvac, days, pc, imp_ws = params
     if pattern == "population_size"
-        I0_ind = wsample(1:n_site, N_tot)
+        I0_ind = wsample(1:n_site, Nc)
     elseif pattern == "airport"
         I0_ind = wsample(1:n_site, imp_ws)
     elseif pattern == "mozambique"
@@ -132,12 +132,12 @@ function update_model(
         params::SEIRMetaModelParams
     )::SEIRMetaModelOneStep
 
-    @unpack γ1, γ2, σ, μ, P_AFP, days, β, N_tot, N_unvac, π_mat, α, n_site, pc = params
+    @unpack γ1, γ2, σ, μ, P_AFP, days, β, Nc, N_unvac, π_mat, α, n_site, pc = params
     @unpack S, E, Ic, Inc, R, A = model
 
     new_born = rand_binom.(N_unvac, μ)
     ext = sum(π_mat' .* (Ic .+ Inc)', dims=2)[:, 1]
-    λ = β./N_tot.*( (1-α) .* (Ic + Inc) .+ α.*ext)
+    λ = β./Nc.*( (1-α) .* (Ic + Inc) .+ α.*ext)
 
     rem_S = rand_binom.(S, 1 .- exp.(-λ .- μ))
     new_E = rand_binom.(rem_S, λ./(λ .+ μ))
@@ -333,7 +333,7 @@ function run_transmission_model(;
     println("# of sites: $(n_site)")
     pars = SEIRMetaModelParams(
         R0=R0, α=α, pc=pc,
-        N_tot=sp_pars.pop,
+        Nc=sp_pars.pop,
         N_unvac=sp_pars.unvac,
         π_mat=sp_pars.π_mat,
         n_site=n_site,
@@ -420,7 +420,7 @@ function sensitivity_ES_catchment_area(
     rec, outcome, pars = res
     t_AFP = AFP_surveillance(rec, par_AFP)
 
-    sens_index = obtain_ES_sensitivity_index(res.pars.N_tot, inc_prop) # 1% increment.
+    sens_index = obtain_ES_sensitivity_index(res.pars.Nc, inc_prop) # 1% increment.
     for ind_site in sens_index
         area = fill(0, res.pars.n_site)
         area[1:ind_site] .= 1

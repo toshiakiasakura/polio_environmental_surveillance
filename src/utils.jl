@@ -1,6 +1,7 @@
 #using Accessors
 using CategoricalArrays
 using CSV
+#using ColorScemes
 using DataFrames
 using Dates
 using Distributions
@@ -9,11 +10,14 @@ using Glob
 using Interpolations
 using JLD2
 using LinearAlgebra
+using Optim
 using Parameters
 using Pipe
 using ProgressMeter
+using PyFormattedStrings
 using Random
 #using Serialization
+using ShiftedArrays
 using SparseArrays
 using SpecialFunctions
 using StatsBase
@@ -245,7 +249,7 @@ function read_spatial_params_file(ES_pattern)
         spatial_p = load(path)["data"]
     else
         error("Specify type from the follwoing: "*
-        "ES_population_size, ES_ozambique_imp_risk"
+        "ES_population_size, ES_mozambique_imp_risk"
         )
     end
     return spatial_p

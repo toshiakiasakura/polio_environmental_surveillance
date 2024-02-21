@@ -13,12 +13,20 @@
 #     name: julia-1.8
 # ---
 
-# +
-using PyFormattedStrings
-
 include("utils.jl")
 include("model_meta_pop.jl")
 include("visualise_fig.jl")
+
+# # Check the empirical 8.96% value corresponds to which index.
+
+# +
+path_res1 = "../dt_tmp_res/sens_ES_catchment_20240219_145929.jld2"
+sp_pars = read_spatial_params_file("ES_population_size")
+per_pop = cumsum(sp_pars.pop)/sum(sp_pars.pop)*100
+
+pc = 0.25
+ES_nat_cov = 8.96
+argmin(abs.(per_pop .- (ES_nat_cov/pc)))
 # -
 
 # # Main figure 

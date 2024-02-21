@@ -43,7 +43,6 @@ for path in path_lis
 end
 write("../data_pop/moz_merged_0_4.tif", map_sum, force=true)
 
-# TODO: save zaf_f_45 from the website.
 path_f = glob("../data_pop/zaf_f_*.tif")
 path_m = glob("../data_pop/zaf_m_*.tif")
 path_f |> length |> println

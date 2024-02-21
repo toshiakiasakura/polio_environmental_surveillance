@@ -1,7 +1,7 @@
 include("utils.jl")
 
 Base.@kwdef mutable struct SEIRModelParams
-    R0::Float64 = 10.0
+    R0::Float64 = 14.0
     γ1::Float64 = 1/4.0
     γ2::Float64 = 1/15.02
     σ::Float64 = 0.329
@@ -10,7 +10,7 @@ Base.@kwdef mutable struct SEIRModelParams
     P_AFP_sample::Float64 = 0.53
     P_AFP_test::Float64 = 0.97
     P_ES_test::Float64 = 0.97
-    N_tot::Int64 = 10_000
+    Nc::Int64 = 10_000
     N_unvac::Int64
     I0_init::Int64 = 1
     days::Int64 = 365*3
@@ -58,7 +58,7 @@ function set_values!(
 end
 
 function initialize_model(params::SEIRModelParams, rec_flag::Bool; pattern="")
-    @unpack N_tot, N_unvac, I0_init, days, pc = params
+    @unpack Nc, N_unvac, I0_init, days, pc = params
     A = pattern == "check_incubation" ? [1000, 0, 0, 0, 0, 0] : [0, 0, 0, 0, 0, 0]
 
     Ic_init = rand_binom(I0_init, pc)
@@ -87,11 +87,11 @@ function update_model(
         params::SEIRModelParams
     )::SEIRModelOneStep
 
-    @unpack γ1, γ2, σ, P_AFP, days, β, N_tot, N_unvac, μ, pc = params
+    @unpack γ1, γ2, σ, P_AFP, days, β, Nc, N_unvac, μ, pc = params
     @unpack S, E, Ic, Inc, R, A = model
 
     new_born = rand_binom(N_unvac, μ)
-    p_inf = β/N_tot*(Ic + Inc)
+    p_inf = β/Nc*(Ic + Inc)
     rem_S = rand_binom(S, 1 .- exp(- p_inf- μ))
     new_E = rand_binom(rem_S, p_inf/(p_inf + μ))
 
@@ -140,7 +140,7 @@ function run_sim(params::SEIRModelParams;
     # set ES scheudle
     nt = [0 for _ in 1:days]
     st_ind = rand(1:ES_n_freq)
-    nt[st_ind:30:days] .= 1
+    nt[st_ind:ES_n_freq:days] .= 1
 
 
     t_extinct = NaN
@@ -172,6 +172,7 @@ function run_sim(params::SEIRModelParams;
             wt = rand_binom(nt[t], ωt*P_ES_test)
             t_ES = wt == 1 ? t : t_ES
         end
+
         # AFP surveillance
         if isnan(t_AFP) == true
             Ct = rand_binom(model.Z_A5_6, P_H*P_AFP_sample*P_AFP_test)
