@@ -7,8 +7,14 @@
 man/
 tmp/
 tmp_results/
+dt_tmp/*/*.png
+dt_tmp/*/*.gif
+dt_tmp/*/*.jld2
+dt_tmp_fix/
 tmp_fix_results/
 dt_tmp_res/
+
+
 src_old/
 doc_ideas/
 doc_travel_south_africa/
@@ -18,8 +24,6 @@ src/old_*.ipynb
 *.tif
 
 *.docx
-dt_tmp/
-dt_tmp_fix/
 doc_MSc_thesis_samples/
 doc_official/
 dt_raster/
