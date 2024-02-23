@@ -17,7 +17,9 @@ include("utils.jl")
 include("model_meta_pop.jl")
 include("visualise_fig.jl")
 
-# # Check the empirical 8.96% value corresponds to which index.
+using Test
+
+# ## Check the empirical 8.96% value corresponds to which index.
 
 # +
 path_res1 = "../dt_tmp_res/sens_ES_catchment_20240219_145929.jld2"
@@ -26,8 +28,21 @@ per_pop = cumsum(sp_pars.pop)/sum(sp_pars.pop)*100
 
 pc = 0.25
 ES_nat_cov = 8.96
-argmin(abs.(per_pop .- (ES_nat_cov/pc)))
+ind = argmin(abs.(per_pop .- (ES_nat_cov/pc)))
+@test ind == 31
 # -
+
+# ## Check 90 ES covered sites correspoinds to what ES population coverage. 
+
+p = per_pop[90]
+
+per_pop[90] |> println
+@test per_pop[90] == 52.457756f0
+
+sp_pars = read_spatial_params_file("ES_mozambique_imp_risk")
+per_pop = cumsum(sp_pars.pop)/sum(sp_pars.pop)*100
+per_pop[90] |> println
+@test per_pop[90] == 34.28197242709779
 
 # # Main figure 
 

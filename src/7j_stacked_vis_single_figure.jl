@@ -101,19 +101,19 @@ plot(pls..., layout = @layout[a b c; d e f],
 # ## Main figure with a different scale
 
 xlabel = "ES population coverage (%)"
-kwds = (x_var="coverage", xlim=[0,100], legend=false)
+kwds_cov = (x_var="coverage", xlim=[0,100], legend=false)
 nothing
 
 # +
 add_annotation!(pl, text_) =  annotate!(pl, 5, 90, text(text_, :white, :left, 11))
 
 pl1 = single_stacked_heatmap(path_res1; vis_kwds=vis_kwds, 
-    ylabel=ylabel, kwds...)
+    ylabel=ylabel, kwds_cov...)
 plot!(pl1, left_margin=5Plots.mm)
 #add_annotation!(pl1, "(A) Population size")
 add_annotation!(pl1, "Scenario 1")
 
-pl2 = single_stacked_heatmap(path_res2; vis_kwds=vis_kwds, kwds...)
+pl2 = single_stacked_heatmap(path_res2; vis_kwds=vis_kwds, kwds_cov...)
 #add_annotation!(pl2, "(B) Airport")
 add_annotation!(pl2, "Scenario 2")
 
@@ -124,18 +124,18 @@ add_annotation!(pl3, "Scenario 3")
 plot!(pl3, right_margin=25Plots.mm)
 
 pl4 = single_stacked_heatmap(path_res1_moz; 
-    vis_kwds=vis_kwds, ylabel=ylabel, xlabel=xlabel, kwds...)
+    vis_kwds=vis_kwds, ylabel=ylabel, xlabel=xlabel, kwds_cov...)
 plot!(pl4, bottom_margin=3Plots.mm, )
 #add_annotation!(pl4, "(D) Population size")
 add_annotation!(pl4, "Scenario 4")
 
 pl5 = single_stacked_heatmap(path_res2_moz; 
-    vis_kwds=vis_kwds, xlabel=xlabel, kwds...)
+    vis_kwds=vis_kwds, xlabel=xlabel, kwds_cov...)
 #add_annotation!(pl5, "(E) Airport")
 add_annotation!(pl5, "Scenario 5")
 
 pl6 = single_stacked_heatmap(path_res3_moz; 
-    vis_kwds=vis_kwds, xlabel=xlabel, kwds...)
+    vis_kwds=vis_kwds, xlabel=xlabel, kwds_cov...)
 #add_annotation!(pl6, "(F) Mozambique")
 add_annotation!(pl6, "Scenario 6")
 

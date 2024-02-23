@@ -67,9 +67,11 @@ df_geo = GDF.read(path_shape)
 df_geo = innerjoin(df_geo, df_vac[:, ["shapeName", "EVP"]], on="shapeName")
 nothing
 
+include("geo_ana.jl")
+
 # Save information
 create_vaccination_coverage_map(df_geo)
-save_vaccination_coverage_data(df_vac)
+save_vaccination_coverage_data(df_vac) # For the publication purpose.
 
 # ## Read and check WorldPop data
 
@@ -103,6 +105,8 @@ plot!(pl, zaf_whole,
 cut_off_pop = 100
 df_ras = raster_to_df(zaf_0_4)
 cut_validate_raster_dataframe!(df_ras, cut_off_pop)
+
+visualise_population(df_ras, :value, zaf_0_4, "")
 
 bins = [2 + 0.25*i for i in 0:12]
 pl = histogram(log10.(df_ras[:, :value]),
@@ -155,13 +159,15 @@ df_save[:, :EVP] = df_save[:, :EVP] .* 100
 CSV.write("../res/table_pop_top.csv", df_save)
 first(df_mer, 5)
 
-# Weighted vaccine coverage.
-prop = df_mer[:, :value]./sum(df_mer[:, :value])
-weighted_EVP = (df_mer[:, :EVP] .* prop) |> sum
-
 # ### Visualise the unimmunised population
 
-visualise_population(df_mer, :value, zaf_0_4, "")
+include("geo_ana.jl")
+
+pl1 = visualise_population(df_mer, :value, zaf_0_4, "")
+annotate!(pl1, 17, -22, text("A", 26, :left, :black))
+pl2 = visualise_population(df_mer, :value_whole, zaf_0_4, "")
+annotate!(pl2, 17, -22, text("B", 26, :left, :black))
+plot(pl1, pl2, dpi=300, fmt=:png, size=(1200, 400))
 
 visualise_population(df_mer, :unvac, zaf_0_4, "")
 
@@ -183,7 +189,9 @@ dfM = @pipe df_prop |> groupby(_, :shapeName) |>
         [:value, :flag_pc25] =>( (x,y) -> prop_f(x,y; pc=0.25) )=> :prop_pc25,
         #[:value, :flag_pc20] =>( (x,y) -> prop_f(x,y; pc=0.2) )=> :prop_pc20,
     )
-@pipe dfM |> sort(_, :prop_pc25, rev=true) |> first(_, 20)
+tab = @pipe dfM |> sort(_, :prop_pc25, rev=true) |> first(_, 20)
+CSV.write("../res/table_ES_pop.csv", tab)
+tab
 # -
 
 # ## Calculate the probability of mobilisations

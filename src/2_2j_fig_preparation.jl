@@ -30,7 +30,10 @@ nothing
 
 # # Probability of importation for each scenario
 
-function visualise_importation_prob(df_mer; title::String = "", colorbar = true)
+function visualise_importation_prob(df_mer; 
+        title::String = "", colorbar = true,
+        colorbar_title = "",
+    )
     zaf_map = copy(zaf_0_4)
     zaf_map[:] .= 0
     n = size(df_mer)[1]
@@ -49,6 +52,7 @@ function visualise_importation_prob(df_mer; title::String = "", colorbar = true)
         right_margin=5Plots.mm,
         top_margin = 0Plots.mm,
         colorbar = colorbar,
+        colorbar_title = colorbar_title,
         color = :matter,
         clims = (-6.5, -0.5),
         fmt=:png, dpi=200,
@@ -87,7 +91,8 @@ plot(pl_pop, pl_airport, pl_moz, layout=layout,
 # -
 
 df[:, :imp_prob] = imp_pop
-pl_pop = visualise_importation_prob(df; colorbar=true)
+pl_pop = visualise_importation_prob(df; colorbar=true, colorbar_title="log10(Probability of importation)")
+plot!(pl_pop, size=(800,600))
 
 # ## For figure 1 
 
@@ -164,7 +169,7 @@ plot(pl_pop, pl_airport, pl_moz,
 # ## Prepare ES layout for figure 1
 
 function plot_ES_covered_sites(
-    ES_pattern 
+    ES_pattern, r_ind
 )
     spatial_p = read_spatial_params_file(ES_pattern)
     df = spatial_p.df
@@ -172,7 +177,8 @@ function plot_ES_covered_sites(
     # Prepare data
     zaf_map = copy(zaf_0_4)
     zaf_map[:] .= 0
-    ind = l_ind:r_ind
+    
+    ind = 1:r_ind
     for r in eachrow(df[ind,:])
         zaf_map[ At(r.lon), At(r.lat)] = 100
     end
@@ -188,14 +194,12 @@ function plot_ES_covered_sites(
     pl
 end
 
-pl_pop = plot_ES_covered_sites("ES_population_size")
+pl_pop = plot_ES_covered_sites("ES_population_size", 50)
 plot!(pl_pop, right_margin=-20Plots.mm)
-pl_moz = plot_ES_covered_sites("ES_mozambique_imp_risk")
+pl_moz = plot_ES_covered_sites("ES_mozambique_imp_risk", 50)
 plot(pl_pop, pl_moz, fmt=:png, dpi=150, size=(1200,600))
 
 # ## Prepare multiple figures with ES coverage sites for gif
-
-
 
 # +
 # Prepare data
@@ -228,12 +232,12 @@ for (i, r_ind) in enumerate(sens_index)
     savefig(pl, "../dt_tmp/gif_map/$(file).png")
 end
 # Make gif in python
-# -
 
-sum(sens_index .<= 31)
-
+# +
 # These index are for gif creation process in python.
 # Use the maximum index for the inclusion criteria.
+
+# sum(sens_index .<= n) is used to specify r_ind. 
 national_ES_cov = 8.59
 n = (df[:, :cum_per] .<= national_ES_cov/0.25) |> sum
 println("pc 25, maximum index: ", sum(sens_index .<= n), ", Number of sites: ", n)
@@ -241,6 +245,7 @@ n = (df[:, :cum_per] .<= national_ES_cov/0.30) |> sum
 println("pc 30, maximum index: ", sum(sens_index .<= n), ", Number of sites: ", n)
 n = (df[:, :cum_per] .<= national_ES_cov/0.5) |> sum
 println("pc 50, maximum index: ", sum(sens_index .<= n), ", Number of sites: ", n)
+# -
 
 # ## Visualise the propability of mobilisation from 3 top populous areas
 
@@ -274,30 +279,30 @@ pl1 = histogram(log10.(π_mat[ind, :]),
     legend=:none,
     xlabel = "log10(π1i)", ylabel="Number of locations",
 )
-annotate!(pl1, (0.1, 0.95), "(A)")
+annotate!(pl1, (0.1, 0.95), "A")
 dist = df[ind, "shapeName"]
 pl2 = visualise_probs(df, ind, "1st populous location\n$(dist)")
-annotate!(pl2, (0.1, 0.95), "(B)")
+annotate!(pl2, (0.1, 0.95), "B")
 
 ind = 2
 pl3 = histogram(log10.(π_mat[ind, :]),
     legend=:none,
     xlabel = "log10(π2i)", ylabel="Number of locations",
 )
-annotate!(pl3, (0.1, 0.95), "(C)")
+annotate!(pl3, (0.1, 0.95), "C")
 dist = df[ind, "shapeName"]
 pl4 = visualise_probs(df, ind, "2nd populous location\n$(dist)")
-annotate!(pl4, (0.1, 0.95), "(D)")
+annotate!(pl4, (0.1, 0.95), "D")
 
 ind = 3
 pl5 = histogram(log10.(π_mat[ind, :]),
     legend=:none,
     xlabel = "log10(π3i)", ylabel="Number of locations",
 )
-annotate!(pl5, (0.1, 0.95), "(E)")
+annotate!(pl5, (0.1, 0.95), "E")
 dist = df[ind, "shapeName"]
 pl6 = visualise_probs(df, ind, "3rd populous location\n$(dist)")
-annotate!(pl6, (0.1, 0.95), "(F)")
+annotate!(pl6, (0.1, 0.95), "F")
 
 l = @layout [
     a{0.3w} b

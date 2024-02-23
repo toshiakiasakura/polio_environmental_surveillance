@@ -34,9 +34,6 @@ cut_off_pop = 100
 df_moz = raster_to_df(moz_0_4)
 cut_validate_raster_dataframe!(df_moz, cut_off_pop)
 
-histogram(log10.(df_zaf[:, :value]), title="zaf") |> display
-histogram(log10.(df_moz[:, :value]), title="moz") |> display
-
 # ## Calculate probability of pi with two districts
 
 # +
@@ -63,7 +60,7 @@ ind_moz = (n_zaf + 1):(n_zaf + n_moz)
 π_inter = π_mat[ind_moz, ind_zaf]
 pop_moz = df_moz[:, :value]
 prod = π_inter .* pop_moz
-imp_ws = sum(prod, dims=1)[1,:] ./ sum(prod)
+imp_ws = @pipe sum(prod, dims=1)[1, :] |> normalize(_, 1)
 nothing
 
 println("Imp weights vector length : $(length(imp_ws))")
@@ -130,7 +127,8 @@ println("argmin(dist): $(argmin(dist)), dist: $(dist[argmin(dist)])")
 # +
 ind = [10, 7, 61]
 weight = [4_342_611, 1_156_996, 188_243] # Travel volume
-π_mat[diagind(π_mat)] .= 1/6
+# Assuming the radiation model, in which the same place is also considered.
+π_mat[diagind(π_mat)] .= 1/2
 imp_prob = sum(π_mat[ind, :] .*weight, dims=1)[1, :]
 imp_prob = imp_prob/sum(imp_prob)
 

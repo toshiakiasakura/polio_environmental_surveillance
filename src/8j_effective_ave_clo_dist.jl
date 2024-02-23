@@ -78,9 +78,9 @@ p_twin = twinx(pl)
 R = 0.1:0.1:4.0
 p_out = observe_more_than_y_cases_in_final_dist.(10, R)
 plot!(p_twin, R, p_out, color="red", ylim=[0,1],
-    ylabel="Probability of an outbreak \nwith 10 or more infections", 
+    ylabel="Probability of an outbreak \nwith 10 or more infections",
     legend=(0.7,0.5),
-    label="",#label="More than 5 cases", 
+    label="",#label="More than 5 cases",
 )
 
 # -
@@ -116,7 +116,7 @@ plot!(pl_w, left_margin=5Plots.mm, bottom_margin=6Plots.mm)
 
 annotate!(pl_w_out, 30, 90, text("B", :black, :left, 24))
 
-plot(pl_w, pl_w_out, 
+plot(pl_w, pl_w_out,
     fmt=:png, dpi=300, size=(1000,400)
 )
 # -

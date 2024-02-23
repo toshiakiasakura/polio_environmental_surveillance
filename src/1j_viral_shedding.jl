@@ -13,18 +13,10 @@
 #     name: julia-1.8
 # ---
 
-using CSV
-using DataFrames
-using Distributions
-using JuliaInterpreter
-using Plots
-using ShiftedArrays
-using StatsPlots
-using Optim
-#using Turing
+include("utils.jl")
 
 df = CSV.read("../data/Radboud_2013_Pt.csv", DataFrame)
-plot(df[:, "day"], df[:, "Pt"], marker=:circle)
+nothing 
 
 lis = append!([2], 8:16)
 df_pt = df[lis,:]
@@ -69,7 +61,7 @@ function target(x)
     return sum(d)
 end
 
-res = optimize(target, [0], [1/4.0], [1/8])
+res = optimize(target, [0], [1/4.0], [1/1000])
 # -
 
 γ2 = Optim.minimizer(res)
