@@ -19,12 +19,12 @@ include("model_meta_pop.jl")
 
 # # Prepare baseline values
 
-R0 = 14 
+R0 = 14
 α = 0.05
 pc = 0.25
 pattern = "population_size"
 ES_pattern = "ES_population_size"
-n_sim = 10
+n_sim = 10000
 base_kwds = (
     n_sim = n_sim,
     pattern = pattern,
@@ -38,7 +38,7 @@ println("Sensitivity analysis for R0 ================")
 summary_info = []
 for R0_sens in [10, 12, 16, 18]
     rec = run_trans_detection_process(;
-        R0=R0_sens, α=α, 
+        R0=R0_sens, α=α,
         base_kwds...
     )
     push!(summary_info, rec)
@@ -49,7 +49,7 @@ println("Sensitivity analysis for α ================")
 summary_info = []
 for α_sens in [0.005, 0.010, 0.100, 0.500]
     rec = run_trans_detection_process(;
-        R0=R0, α=α_sens, 
+        R0=R0, α=α_sens,
         base_kwds...
     )
     push!(summary_info, rec)
@@ -71,7 +71,7 @@ for ES_μ in [-0.994, -0.301, 2.918, 3.611]
         ES_μ=ES_μ, ES_σ=ES_σ
     )
     path_save = save_sensitivity_ES_catchment_area(
-        par_AFP, par_ES, path_trans; 
+        par_AFP, par_ES, path_trans;
         inc_prop=0.01, pattern=pattern, ES_pattern=ES_pattern,
     )
     rec = (R0=R0, α=α, pc=pc, n_sim=n_sim,
@@ -94,7 +94,7 @@ for n_freq in [1, 7, 14, 60]
         n_freq=n_freq
     )
     path_save = save_sensitivity_ES_catchment_area(
-        par_AFP, par_ES, path_trans; 
+        par_AFP, par_ES, path_trans;
         inc_prop=0.01, pattern=pattern, ES_pattern=ES_pattern,
     )
     rec = (R0=R0, α=α, pc=pc, n_sim=n_sim,

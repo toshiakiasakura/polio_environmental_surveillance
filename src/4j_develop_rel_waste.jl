@@ -13,13 +13,16 @@
 #     name: julia-1.8
 # ---
 
+using Pkg
+Pkg.instantiate()
+
 include("utils.jl")
 include("geo_ana.jl")
 include("model_meta_pop.jl")
 
 # # Run all patterns
 
-base_kwds = (n_sim=10, R0=14.0, α=0.05, pc=0.25)
+base_kwds = (n_sim=10000, R0=14.0, α=0.05, pc=0.25)
 
 ES_pattern = "ES_population_size"
 summary_info = []

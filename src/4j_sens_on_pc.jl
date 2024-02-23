@@ -19,9 +19,9 @@ include("model_meta_pop.jl")
 
 # # Run all patterns
 
-base_kwds = (n_sim=10, R0=14.0, α=0.05)
+base_kwds = (n_sim=10000, R0=14.0, α=0.05)
 
-# # Sensitivity analysis for pc 
+# # Sensitivity analysis for pc
 
 println("Sensitivity analysis for pc ================")
 ES_pattern = "ES_population_size"
