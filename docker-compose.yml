@@ -1,14 +1,13 @@
 version: "3"
 services:
   lab:
-    #image: jupyter_projname:v01 
-    container_name: polio_ES
+    container_name: polio_ES_slurm
     build:
         context: .
         dockerfile: ./Dockerfile
 
     ports:
-      - "8888:8888" 
+      - "8888:8888"
 
     volumes:
       - .:/workdir

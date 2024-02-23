@@ -287,7 +287,7 @@ function run_and_save_sim(pars::SEIRMetaModelParams; n_sim=10, pattern="")
     path = "../dt_tmp/$now_str"
     mkdir(path)
     #println(path)
-    @showprogress for i in 1:n_sim
+    for i in 1:n_sim
         res = run_sim(pars; rec_flag=true, pattern=pattern)
         jldsave("$(path)/$(i).jld2"; data=res)
     end
@@ -423,7 +423,7 @@ function save_sensitivity_ES_catchment_area(
 )
     path_objs = fetch_sim_paths(path_trans)
     sim_res = DataFrame()
-    @showprogress for i in 1:length(path_objs)
+    for i in 1:length(path_objs)
         res = load(path_objs[i])["data"]
         par_ES_tmp = copy(par_ES)
         sim_res = sensitivity_ES_catchment_area(
