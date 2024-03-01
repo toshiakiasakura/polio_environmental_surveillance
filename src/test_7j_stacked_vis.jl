@@ -27,7 +27,7 @@ sp_pars = read_spatial_params_file("ES_population_size")
 per_pop = cumsum(sp_pars.pop)/sum(sp_pars.pop)*100
 
 pc = 0.25
-ES_nat_cov = 8.96
+ES_nat_cov = 11.3 # Old value, 8.96
 ind = argmin(abs.(per_pop .- (ES_nat_cov/pc)))
 @test ind == 31
 # -

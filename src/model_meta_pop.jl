@@ -21,8 +21,8 @@ Base.@kwdef mutable struct SEIRMetaModelParams
 end
 
 Base.@kwdef mutable struct ESParams
-    ES_μ::Float64 = 1.308
-    ES_σ::Float64 = 1.493
+    ES_μ::Float64 = 0.818
+    ES_σ::Float64 = 1.450
     Pop_whole::Vector{Float64}
     P_test::Float64 = 0.97
     area::Vector{Bool}

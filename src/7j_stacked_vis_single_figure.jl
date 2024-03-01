@@ -22,13 +22,12 @@ include("visualise_fig.jl")
 ["R0=14, α=0.05, pc=0.25, n_sim=500, pattern=population_size, ES_pattern=ES_population_size, path: ../dt_tmp_res/sens_ES_catchment_20240217_114746.jld2", "R0=14, α=0.05, pc=0.25, n_sim=500, pattern=airport, ES_pattern=ES_population_size, path: ../dt_tmp_res/sens_ES_catchment_20240217_115551.jld2", "R0=14, α=0.05, pc=0.25, n_sim=500, pattern=mozambique, ES_pattern=ES_population_size, path: ../dt_tmp_res/sens_ES_catchment_20240217_121622.jld2"] |> println
 ["R0=14, α=0.05, pc=0.25, n_sim=500, pattern=population_size, ES_pattern=ES_mozambique_imp_risk, path: ../dt_tmp_res/sens_ES_catchment_20240217_123152.jld2", "R0=14, α=0.05, pc=0.25, n_sim=500, pattern=airport, ES_pattern=ES_mozambique_imp_risk, path: ../dt_tmp_res/sens_ES_catchment_20240217_124140.jld2", "R0=14, α=0.05, pc=0.25, n_sim=500, pattern=mozambique, ES_pattern=ES_mozambique_imp_risk, path: ../dt_tmp_res/sens_ES_catchment_20240217_130352.jld2"] |> println
 
-path_res1 = "../dt_tmp_res/sens_ES_catchment_20240219_145929.jld2"
-path_res2 = "../dt_tmp_res/sens_ES_catchment_20240219_150715.jld2"
-path_res3 = "../dt_tmp_res/sens_ES_catchment_20240219_152555.jld2"
-path_res1_moz = "../dt_tmp_res/sens_ES_catchment_20240217_123152.jld2"
-path_res2_moz = "../dt_tmp_res/sens_ES_catchment_20240217_124140.jld2"
-path_res3_moz = "../dt_tmp_res/sens_ES_catchment_20240217_130352.jld2"
-
+path_res1 = "../dt_tmp_res1/sens_ES_catchment_20240224_013713.jld2"
+path_res2 = "../dt_tmp_res1/sens_ES_catchment_20240224_051550.jld2"
+path_res3 = "../dt_tmp_res1/sens_ES_catchment_20240224_141956.jld2"
+path_res1_moz = "../dt_tmp_res1/sens_ES_catchment_20240224_205752.jld2"
+path_res2_moz = "../dt_tmp_res1/sens_ES_catchment_20240225_010831.jld2"
+path_res3_moz = "../dt_tmp_res1/sens_ES_catchment_20240225_101657.jld2"
 
 fontsize = 8 
 xlabel = "Number of ES covered site"

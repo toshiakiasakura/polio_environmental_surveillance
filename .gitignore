@@ -1,6 +1,7 @@
 # intermediate files
 *.xlsx
 #*.csv
+*.simg
 *.swp
 ~*
 
@@ -13,6 +14,8 @@ dt_tmp/*/*.jld2
 dt_tmp_fix/
 tmp_fix_results/
 dt_tmp_res/
+dt_tmp_res_big/
+dt_tmp_res1/
 
 
 src_old/

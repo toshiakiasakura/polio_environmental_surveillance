@@ -201,13 +201,13 @@ plot(pl_pop, pl_moz, fmt=:png, dpi=150, size=(1200,600))
 
 # ## Prepare multiple figures with ES coverage sites for gif
 
-# +
 # Prepare data
 cum_per = df[:, :cum_per]
 pop = df[:, :value]
 sens_index = obtain_ES_sensitivity_index(pop, 0.01)
 zaf_map = copy(zaf_0_4)
 zaf_map[:] .= 0
+nothing
 
 # Create multiple files.
 l_ind =  1
@@ -238,7 +238,7 @@ end
 # Use the maximum index for the inclusion criteria.
 
 # sum(sens_index .<= n) is used to specify r_ind. 
-national_ES_cov = 8.59
+national_ES_cov = 11.3 # for old value, 8.59
 n = (df[:, :cum_per] .<= national_ES_cov/0.25) |> sum
 println("pc 25, maximum index: ", sum(sens_index .<= n), ", Number of sites: ", n)
 n = (df[:, :cum_per] .<= national_ES_cov/0.30) |> sum

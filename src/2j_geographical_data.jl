@@ -174,7 +174,7 @@ visualise_population(df_mer, :unvac, zaf_0_4, "")
 # ### Calculate population and ES coverage by district
 
 # +
-national_ES_cov = 8.59
+national_ES_cov = 11.3 # old value, 8.59
 df_prop = copy(df_mer)
 df_prop[:, :flag_pc100] = (df_prop[:, :cum_per] * 1.0) .< national_ES_cov
 df_prop[:, :flag_pc50] = (df_prop[:, :cum_per] * 0.5) .< national_ES_cov
