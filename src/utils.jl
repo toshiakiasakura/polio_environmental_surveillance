@@ -31,7 +31,7 @@ function rand_binom(n, p)::Int64
         return rand(Binomial(n, p))
     end
 end
-get_today_time() = @pipe now() |> Dates.format(_, "yyyymmdd_HHMMSS")
+get_today_time() = @pipe now() |> Dates.format(_, "yyyymmdd_HHMMSSsss")
 
 function rand_beta_binom(n, p, ρ)::Int64
     s = 1 / ρ - 1
