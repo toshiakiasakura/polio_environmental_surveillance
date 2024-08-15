@@ -26,7 +26,7 @@ TODO: Add the citation
 - Boundary data from [geoBoundary](https://www.geoboundaries.org/):
 `/dt_geoBoundaries-*`
 
-- Simulation results to reproduce the figures: `dt_tmp_hpc`
+- Simulation results to reproduce the figures: `/dt_tmp_hpc`
 
 ### How to run the code
 Clone this repository and type `docker compose up` to
