@@ -186,7 +186,7 @@ include("visualise_fig.jl")
 
 # ### R0
 
-tuples = [(R0 = 10, α = 0.05, pc = 0.25, n_sim = 10000, pattern = "population_size", ES_pattern = "ES_population_size", path = "../dt_tmp_res/sens_ES_catchment_20240302_025116224.jld2"), (R0 = 12, α = 0.05, pc = 0.25, n_sim = 10000, pattern = "population_size", ES_pattern = "ES_population_size", path = "../dt_tmp_res/sens_ES_catchment_20240302_082109968.jld2"), (R0 = 16, α = 0.05, pc = 0.25, n_sim = 10000, pattern = "population_size", ES_pattern = "ES_population_size", path = "../dt_tmp_res/sens_ES_catchment_20240302_162056133.jld2"), (R0 = 18, α = 0.05, pc = 0.25, n_sim = 10000, pattern = "population_size", ES_pattern = "ES_population_size", path = "../dt_tmp_res/sens_ES_catchment_20240303_012857453.jld2")]
+tuples = [(R0 = 10, α = 0.05, pc = 0.25, n_sim = 10000, pattern = "population_size", ES_pattern = "ES_population_size", path = "../dt_tmp_hpc/sens_ES_catchment_20240302_025116224.jld2"), (R0 = 12, α = 0.05, pc = 0.25, n_sim = 10000, pattern = "population_size", ES_pattern = "ES_population_size", path = "../dt_tmp_hpc/sens_ES_catchment_20240302_082109968.jld2"), (R0 = 16, α = 0.05, pc = 0.25, n_sim = 10000, pattern = "population_size", ES_pattern = "ES_population_size", path = "../dt_tmp_hpc/sens_ES_catchment_20240302_162056133.jld2"), (R0 = 18, α = 0.05, pc = 0.25, n_sim = 10000, pattern = "population_size", ES_pattern = "ES_population_size", path = "../dt_tmp_hpc/sens_ES_catchment_20240303_012857453.jld2")]
 for t in tuples
     println("path_R0_$(t.R0) = \"$(t.path)\"")
 end

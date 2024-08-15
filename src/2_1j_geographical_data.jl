@@ -218,18 +218,4 @@ scatter(log10.(pop_rev), cum, title="How population_size scenairio works",
     xlabel="Order", ylabel="Cumulative proportion (%)"
 )
 
-# ## Unvaccinated base
-
-# +
-df_mer2 = sort(df_mer, "unvac"; rev=true)
-pop = df_mer2[:, "value"]
-unvac = @pipe df_mer2[:, :unvac] .|> round(_, digits=0) .|> Int64
-mat = df_mer2[:, [:lat, :lon]] |> Matrix
-π_mat = calculate_probability_of_pi(pop, mat)
-
-spatial_p = (pop=pop, unvac=unvac, π_mat=π_mat, df=df_mer2)
-path = "../dt_tmp/spatial_params_agg$(agg_scale)_unvac.jld2"
-println(path)
-jldsave(path; data=spatial_p)
-# -
 

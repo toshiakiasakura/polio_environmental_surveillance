@@ -454,57 +454,6 @@ pl = plot(pl1, pl2, pl3, pl4, pl5, pl6,
 display(pl)
 savefig(pl, "../res/fig_pi_map.png")
 # -
-# ## Unvaccinated base
-
-path = "../dt_tmp/spatial_params_agg230_unvac.jld2"
-spatial_p |> keys |> println
-df = spatial_p.df
-π_mat = spatial_p.π_mat
-nothing
-
-# +
-ind = 1
-pl1 = histogram(log10.(π_mat[:, ind]),
-    legend=:none,
-    xlabel = "log10(πi1)", ylabel="Number of locations",
-)
-annotate!(pl1, (0.1, 0.95), "(A)")
-dist = df[ind, "shapeName"]
-pl2 = visualise_probs(df, ind, "1st populous location\n$(dist)")
-annotate!(pl2, (0.1, 0.95), "(B)")
-
-ind = 2
-pl3 = histogram(log10.(π_mat[:, ind]),
-    legend=:none,
-    xlabel = "log10(πi2)", ylabel="Number of locations",
-)
-annotate!(pl3, (0.1, 0.95), "(C)")
-dist = df[ind, "shapeName"]
-pl4 = visualise_probs(df, ind, "2nd populous location\n$(dist)")
-annotate!(pl4, (0.1, 0.95), "(D)")
-
-ind = 3
-pl5 = histogram(log10.(π_mat[:, ind]),
-    legend=:none,
-    xlabel = "log10(πi3)", ylabel="Number of locations",
-)
-annotate!(pl5, (0.1, 0.95), "(E)")
-dist = df[ind, "shapeName"]
-pl6 = visualise_probs(df, ind, "3rd populous location\n$(dist)")
-annotate!(pl6, (0.1, 0.95), "(F)")
-
-l = @layout [
-    a{0.3w} b
-    c{0.3w} d
-    e{0.3w} f
-]
-pl = plot(pl1, pl2, pl3, pl4, pl5, pl6,
-    dpi=300, size=(800, 350 * 3),
-    layout=l, left_margin=5Plots.mm,
-)
-display(pl)
-savefig(pl, "../res/fig_pi_map_unvac.png")
-# -
 
 
 
