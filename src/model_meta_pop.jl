@@ -335,9 +335,11 @@ function set_par_AFP_ES(;
     par_AFP = AFPSurParams()
 
     # Set ES params. The value comes from the empirical one.
-    ES_obs_cov = 0.0859
+    # Since currently `sensitivity_ES_catchment_area" is only used,
+    # this value is not used anymore.`
+    national_ES_cov = 0.113
     # ES coverage rate for the baseline.
-    cov_rate = ES_obs_cov / pc
+    cov_rate = national_ES_cov / pc
 
     # Set the baseline catchment area (but not used anymore).
     pop = sp_pars.pop

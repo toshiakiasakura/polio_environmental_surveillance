@@ -19,6 +19,31 @@ include("visualise_fig.jl")
 
 using Test
 
+# ## Check real values for the simulation results
+
+path_res1 = "../dt_tmp_hpc/sens_ES_catchment_20240302_050027059.jld2"
+path_res2 = "../dt_tmp_hpc/sens_ES_catchment_20240302_091756993.jld2"
+path_res3 = "../dt_tmp_hpc/sens_ES_catchment_20240302_190345473.jld2"
+path_res1_moz = "../dt_tmp_hpc/sens_ES_catchment_20240303_020804257.jld2"
+path_res2_moz = "../dt_tmp_hpc/sens_ES_catchment_20240303_064157726.jld2"
+path_res3_moz = "../dt_tmp_hpc/sens_ES_catchment_20240303_160629569.jld2"
+
+function check_early_detection_prob(path)
+@unpack ES_pattern, inc_prop, sim_res, path_trans, pars = load(path)
+    df_fil, bin_labels = create_lead_time_category(sim_res)
+    y, grp_50 = proportion_each_cate_by_group(df_fil, :ind_site)
+    display(grp_50[1:10, :])
+    #display(grp_50[25:32, :])
+end
+
+check_early_detection_prob(path_res1)
+check_early_detection_prob(path_res2)
+check_early_detection_prob(path_res3)
+
+check_early_detection_prob(path_res1_moz)
+check_early_detection_prob(path_res2_moz)
+check_early_detection_prob(path_res3_moz)
+
 # ## Check the empirical 8.96% value corresponds to which index.
 
 # +

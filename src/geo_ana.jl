@@ -123,8 +123,10 @@ function create_vaccination_coverage_map(df_geo::DataFrame)
     #    markerstrokewidth=0.1)
     pl2 = heatmap(rand(2, 2), clims=(lower * 100, 100), framestyle=:none,
         c=cgrad(cm), cbar=true, lims=(-1, 0),
+        colorbar_title="Effective immunisation proportion (%)",
     )
-    pl = plot(pl, pl2, layout=l, right_margin=10Plots.mm, fmt=:png)
+    pl = plot(pl, pl2, layout=l, right_margin=10Plots.mm, fmt=:png,
+    )
     display(pl)
     savefig(pl, "../res/fig_vaccine_coverage.png")
 end

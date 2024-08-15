@@ -10,7 +10,9 @@ using Glob
 using GLM
 using Interpolations
 using JLD2
+using LaTeXStrings
 using LinearAlgebra
+using Memoize
 using Optim
 using Parameters
 using Pipe
@@ -23,6 +25,7 @@ using SparseArrays
 using SpecialFunctions
 using StatsBase
 using StatsPlots
+using XLSX
 
 function rand_binom(n, p)::Int64
     if (n == 0) | (p == 0)
@@ -31,7 +34,7 @@ function rand_binom(n, p)::Int64
         return rand(Binomial(n, p))
     end
 end
-get_today_time() = @pipe now() |> Dates.format(_, "yyyymmdd_HHMMSS")
+get_today_time() = @pipe now() |> Dates.format(_, "yyyymmdd_HHMMSSsss")
 
 function rand_beta_binom(n, p, ρ)::Int64
     s = 1 / ρ - 1
@@ -222,7 +225,7 @@ end
 
 function observe_more_than_y_cases_in_final_dist(y, R)
     p = 1
-    for i in 1:y
+    for i in 1:(y-1)
         p -= borel_tanner_dist(i, R)
     end
     return p
@@ -233,6 +236,8 @@ function probit_func(x::Float64; a::Float64=1.0, b::Float64=1.0)
     return cdf(_standard_normal, a + b * x)
 end
 
+@memoize load_cached(path) = load(path)
+
 """Read the ES related spatial parameter file.
 This file choice is determined by the way to layout ES.
 
@@ -240,7 +245,7 @@ Args:
 - `ES_pattern`: Takes `ES_population_size` or `ES_mozambique_imp_risk`
 
 """
-function read_spatial_params_file(ES_pattern)
+@memoize function read_spatial_params_file(ES_pattern)
     spatial_p = :none
     if (ES_pattern == "ES_population_size")
         path = "../dt_tmp/spatial_params_agg230.jld2"

@@ -18,6 +18,7 @@ include("geo_ana.jl")
 include("model_meta_pop.jl")
 
 # # Create population map data
+# - Download individual population data for zaf and moz from WroldPop. If not skip this section.
 
 path1 = "../data_pop/zaf_f_0_2020_constrained.tif"
 path_lis = [

@@ -58,8 +58,6 @@ println("Effective reproduction number from the national level:\n", Re0)
 pars_inc = SEIRModelParams(I0_init=0 ;base_kwds...)
 dump(pars_inc)
 
-normalize(dist, 1) * 1095
-
 # +
 pl = plot(xlim=[0,40], #ylim=[0, 0.1],
     xticks=[0, 7, 15, 21, 25, 33, 39], fmt=:png,
@@ -96,7 +94,7 @@ function multiple_run(pars_)
     Random.seed!(1234)
     # Simulation part
     outcomes = []
-    N_sim = 10000
+    N_sim = 20000
     for i in 1:N_sim
         rec, outcome = run_sim(pars_; rec_flag=false)
         push!(outcomes, outcome)
@@ -204,7 +202,7 @@ pl_pop  = draw_cumulative_incidence(pars_pop_lis, colors3;
 
 pl_pc = draw_cumulative_incidence(pars_pc_lis, colors3;
     xlabel="Day",
-    legendtitle="pc", labels=["1.00", "0.25", "0.01"],
+    legendtitle="pc", labels=["100%", "  25%", "    1%"],
 )
 nothing
 # -
@@ -216,7 +214,7 @@ function plot_prop_any_and_prop_pattern(
     )
     p_any_lis, freq_lis = obtain_p_any_and_freq_list(par_lis)
     pl_bar = bar(cate, p_any_lis.*100,
-        ylabel="Probability of \nany detection (%)",
+        ylabel="Simulated probability \nof detection (%)",
         xlabel=xlabel,
         label=:none
     )
@@ -238,10 +236,15 @@ pl_bar_sens, pl_grpbar_sens = plot_prop_any_and_prop_pattern(
 pl_bar_pop, pl_grpbar_pop = plot_prop_any_and_prop_pattern(
     pars_pop_lis, ["5,000", "20,000", "100,000"], "Nc")
 pl_bar_pc, pl_grpbar_pc= plot_prop_any_and_prop_pattern(
-    pars_pc_lis, ["1.00", "0.25", "0.01"], "pc")
+    pars_pc_lis, ["100%", "  25%", "    1%"], "pc")
 
 nothing
-# -
+
+# +
+plot!(pl_R0, top_margin=10Plots.mm)
+annotate!(pl_R0, (0.05, 1.0), text("A", :left, :bottom, :black, 24))
+annotate!(pl_bar_R0, (0.05, 1.0), text("B", :left, :bottom, :black, 24))
+annotate!(pl_grpbar_R0, (0.05, 1.0), text("C", :left, :bottom, :black, 24))
 
 prefixes = ["", "bar_", "grpbar_"]
 pls = []
@@ -254,6 +257,7 @@ layout = @layout [a{0.5w} b c; d e f; g h i; j k l; m n o]
 plot(pls..., layout=layout,
     fmt=:png, dpi=300, size=(1200, 250*5),
 )
+# -
 
 bin_labels = ["AFP only", "<-60 LT", "-60 ~ -1 LT", "0 ~ 59 LT", "≥60 LT", "ES only"]
 colors = discretise_balance_color(bin_labels)
@@ -263,7 +267,7 @@ pl = groupedbar([""], [25 12.5 12.5 12.5 12.5 25],
     color=colors[:, end:-1:begin],
     legend=:none,
     ylim=[0,100],
-    ylabel="Probability of detection pattern (%)",
+    ylabel="Proportion of detection pattern (%)",
     ylabelfontsize=22,
     ytickfontsize=18,
     right_margin=30Plots.mm,
@@ -297,21 +301,27 @@ lognorm_pc25 = obtain_detection_curve(pars_base)
 lognorm_20000 = obtain_detection_curve(pars_20000)
 lognorm_5000 = obtain_detection_curve(pars_5000)
 
+# +
 x = 0:0.1:30
 y_def = cdf(LogNormal(pars.ES_μ, pars.ES_σ), x)
 y_pc25 = cdf(lognorm_pc25, x)
 y_10000 = cdf(lognorm_20000, x)
 y_5000 = cdf(lognorm_5000, x)
+
+ytick_v = [0, 0.25, 0.5, 0.75, 1.0] 
+ytick_l = ["0", "25", "50", "75", "100"]
 pl = plot(
     xlabel="Infectious individuals per 100,000 population",
-    ylabel="Probability of detection",
+    ylabel="ES sensitivity (%)",
+    yticks=(ytick_v, ytick_l),
     #title="Refit with Infects/pop within grid (not coverage)",
     fmt=:png, dpi=300
 )
-plot!(x, y_def, label="Given ES sensitivity", lw=2)
+plot!(x, y_def, label="Assumed ES sensitivity", lw=2)
 plot!(x, y_pc25, label="Nc = 100,000")
 plot!(x, y_10000, label="Nc = 20,000")
 plot!(x, y_5000, label="Nc = 5,000")
+# -
 
 # ## Check the basic model behaviour
 

@@ -19,8 +19,8 @@ Base.@kwdef mutable struct SEIRModelParams
     β::Float64 = R0 * γ2
     pc::Float64
     Pop_whole::Float64
-    ES_μ::Float64 = 1.308
-    ES_σ::Float64 = 1.493
+    ES_μ::Float64 = 0.818
+    ES_σ::Float64 = 1.450
 end
 
 Base.@kwdef mutable struct SEIRModelRecord

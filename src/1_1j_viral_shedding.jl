@@ -74,9 +74,11 @@ pl = plot(#title="pdf of proportion of shedding virus over time\nγ1=1/4, γ2=1/
     xlabel="Day", ylabel="Probability density function",
     fmt=:png,
     xticks=0:7:70, dpi=300,
+    foreground_color_legend=nothing,
+    background_color_legend=nothing,
 )
 plot!(pl, days, pt, label="Radboud, 2013", marker=:circle)
-plot!(pl, x, y_gamma, label="Gamma distribution")
+#plot!(pl, x, y_gamma, label="Gamma distribution")
 plot!(pl, x, y_conv, label="SEIR model")
 display(pl)
 savefig(pl, "../res/fig_viral_shedding.png")

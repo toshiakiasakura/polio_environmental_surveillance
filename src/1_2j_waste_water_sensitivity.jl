@@ -112,7 +112,23 @@ y = cdf.(lognorm, data_x)
 scatter!(pl, data_x, y)
 
 pl = plot(fmt=:png, dpi=150)
+res = fit_lognorm(data_x, data_y, [1.0, 5.0])
+lognorm = LogNormal(res[1], res[2])
+x = 0:0.1:50
+y = cdf(lognorm, x) 
+plot(pl, x, y, lw=2,
+    xlabel="Incidence rate of infectious individuals", 
+    ylabel="ES sensitivity", 
+    label="", 
+    xlabelfontsize=18, ylabelfontsize=18,
+)
+
+# +
+pl = plot(fmt=:png, dpi=250)
 labels = ["10x lower", "3x lower", "Baseline", "3x higher", "10x higher"]
+ytick_v = [0, 0.25, 0.5, 0.75, 1.0] 
+ytick_l = ["0", "25", "50", "75", "100"]
+
 for (i, k) in enumerate([10, 3, 1, 1/3, 1/10])
     res = fit_lognorm(data_x .* k, data_y, [1.0, 5.0])
     println(f"Estimated params: {res[1]:.3f}, {res[2]:.3f}")
@@ -122,14 +138,19 @@ for (i, k) in enumerate([10, 3, 1, 1/3, 1/10])
     y = cdf(lognorm, x)
     plot!(pl, x, y, label=labels[i], lw=2,
         xlabel="Infectious individuals per 100,000 population",
-        ylabel="ES sensitivity",
+        ylabel="ES sensitivity (%)",
+        yticks=(ytick_v, ytick_l),
     )
 end
 display(pl)
 
-
-
-
+# + [markdown] jp-MarkdownHeadingCollapsed=true
+# Estimated params: 3.121, 1.450
+# Estimated params: 1.917, 1.450
+# Estimated params: 0.818, 1.450
+# Estimated params: -0.281, 1.450
+# Estimated params: -1.485, 1.450
+# -
 
 
 
