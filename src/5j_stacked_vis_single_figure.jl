@@ -26,12 +26,12 @@ path_res1_moz = "../dt_tmp_hpc/sens_ES_catchment_20240303_020804257.jld2"
 path_res2_moz = "../dt_tmp_hpc/sens_ES_catchment_20240303_064157726.jld2"
 path_res3_moz = "../dt_tmp_hpc/sens_ES_catchment_20240303_160629569.jld2"
 
-fontsize = 8 
+fontsize = 8
 xlabel = "Number of ES-covered patchs"
 ylabel = "Proportion of detection pattern (%)"
 vis_kwds = (
     left_margin=0Plots.mm, right_margin=0Plots.mm,
-    xlabelfontsize=fontsize, ylabelfontsize=fontsize, tickfontsize=fontsize -2, 
+    xlabelfontsize=fontsize, ylabelfontsize=fontsize, tickfontsize=fontsize -2,
     foreground_color_legend=nothing, background_color_legend=nothing,
 )
 kwds = (x_var="site", xlim=[0,160], legend=false)
@@ -41,13 +41,13 @@ nothing
 
 fontsize1 = 20
 vis_kwds1 = (
-    xlabelfontsize=fontsize1, ylabelfontsize=fontsize1, 
+    xlabelfontsize=fontsize1, ylabelfontsize=fontsize1,
     tickfontsize=fontsize1-4,
 )
-pl1 = single_stacked_heatmap(path_res1; 
+pl1 = single_stacked_heatmap(path_res1;
     vis_kwds=vis_kwds1,
     xlabel=xlabel, ylabel=ylabel, kwds...)
-plot!(pl1, dpi=200, fmt=:png, 
+plot!(pl1, dpi=200, fmt=:png,
     right_margin=5Plots.mm, left_margin=5Plots.mm,
     top_margin=5Plots.mm, size=(700, 600),
 )
@@ -55,7 +55,7 @@ plot!(pl1, dpi=200, fmt=:png,
 # ## Main Figure
 
 # +
-pl1 = single_stacked_heatmap(path_res1; vis_kwds=vis_kwds, 
+pl1 = single_stacked_heatmap(path_res1; vis_kwds=vis_kwds,
     ylabel=ylabel, kwds...)
 plot!(pl1, left_margin=5Plots.mm)
 #add_annotation!(pl1, "(A) Population size")
@@ -65,27 +65,27 @@ pl2 = single_stacked_heatmap(path_res2; vis_kwds=vis_kwds, kwds...)
 #add_annotation!(pl2, "(B) Airport")
 add_annotation1!(pl2, "B", "IMP-AIR/ES-POP")
 
-pl3 = single_stacked_heatmap(path_res3; vis_kwds=vis_kwds, 
+pl3 = single_stacked_heatmap(path_res3; vis_kwds=vis_kwds,
     x_var="site", xlim=[0,160], legend=true)
 add_annotation1!(pl3, "C", "IMP-LBC/ES-POP")
 plot!(pl3, right_margin=25Plots.mm)
 
-pl4 = single_stacked_heatmap(path_res1_moz; 
+pl4 = single_stacked_heatmap(path_res1_moz;
     vis_kwds=vis_kwds, ylabel=ylabel, xlabel=xlabel, kwds...)
 plot!(pl4, bottom_margin=3Plots.mm, )
 #add_annotation!(pl4, "(D) Population size")
 add_annotation1!(pl4, "D", "IMP-POP/ES-LBC")
 
-pl5 = single_stacked_heatmap(path_res2_moz; 
+pl5 = single_stacked_heatmap(path_res2_moz;
     vis_kwds=vis_kwds, xlabel=xlabel, kwds...)
 add_annotation1!(pl5, "E", "IMP-AIR/ES-LBC")
 
-pl6 = single_stacked_heatmap(path_res3_moz; 
+pl6 = single_stacked_heatmap(path_res3_moz;
     vis_kwds=vis_kwds, xlabel=xlabel, kwds...)
 add_annotation1!(pl6, "F", "IMP-LBC/ES-LBC")
 
 pls = [pl1, pl2, pl3, pl4, pl5, pl6]
-pl = plot(pls..., layout = @layout[a b c; d e f],  
+pl = plot(pls..., layout = @layout[a b c; d e f],
     fmt=:png, dpi=300, size=(1000,500),)
 display(pl)
 savefig(pl, "../res/Fig2_6scenarios.png")
@@ -99,24 +99,24 @@ nothing
 include("visualise_fig.jl")
 
 # +
-pl1 = single_stacked_heatmap(path_res1; vis_kwds=vis_kwds, 
+pl1 = single_stacked_heatmap(path_res1; vis_kwds=vis_kwds,
     ylabel=ylabel, kwds_cov...)
 plot!(pl1, left_margin=5Plots.mm)
 
 pl2 = single_stacked_heatmap(path_res2; vis_kwds=vis_kwds, kwds_cov...)
 
-pl3 = single_stacked_heatmap(path_res3; vis_kwds=vis_kwds, 
+pl3 = single_stacked_heatmap(path_res3; vis_kwds=vis_kwds,
     x_var="coverage", xlim=[0,100], legend=true)
 plot!(pl3, right_margin=25Plots.mm)
 
-pl4 = single_stacked_heatmap(path_res1_moz; 
+pl4 = single_stacked_heatmap(path_res1_moz;
     vis_kwds=vis_kwds, ylabel=ylabel, xlabel=xlabel, kwds_cov...)
 plot!(pl4, bottom_margin=3Plots.mm, )
 
-pl5 = single_stacked_heatmap(path_res2_moz; 
+pl5 = single_stacked_heatmap(path_res2_moz;
     vis_kwds=vis_kwds, xlabel=xlabel, kwds_cov...)
 
-pl6 = single_stacked_heatmap(path_res3_moz; 
+pl6 = single_stacked_heatmap(path_res3_moz;
     vis_kwds=vis_kwds, xlabel=xlabel, kwds_cov...)
 
 add_annotation1!(pl1, "A", "IMP-POP/ES-POP")
@@ -128,7 +128,7 @@ add_annotation1!(pl5, "E", "IMP-AIR/ES-LBC")
 add_annotation1!(pl6, "F", "IMP-LBC/ES-LBC")
 
 pls = [pl1, pl2, pl3, pl4, pl5, pl6]
-plot(pls..., layout = @layout[a b c; d e f],  
+plot(pls..., layout = @layout[a b c; d e f],
     fmt=:png, dpi=300, size=(1000,500),)
 # -
 # ## Main figure against the number of ES-covered patches including no detection pattern
@@ -141,32 +141,32 @@ xlabel= "Number of ES-covered patches"
 ylabel= "Proportion of detection pattern (%)"
 
 # +
-pl1 = single_stacked_heatmap_with_no_detection(path_res1, n_sim; 
+pl1 = single_stacked_heatmap_with_no_detection(path_res1, n_sim;
     vis_kwds=vis_kwds,  ylabel=ylabel, legend=false,
     kwds1...,
 )
 plot!(pl1, left_margin=5Plots.mm)
 
-pl2 = single_stacked_heatmap_with_no_detection(path_res2, n_sim; 
+pl2 = single_stacked_heatmap_with_no_detection(path_res2, n_sim;
     vis_kwds=vis_kwds, legend=false,
     kwds1...,
 )
-pl3 = single_stacked_heatmap_with_no_detection(path_res3, n_sim; 
+pl3 = single_stacked_heatmap_with_no_detection(path_res3, n_sim;
     vis_kwds=vis_kwds, legend=true,
     kwds1...,
 )
 plot!(pl3, right_margin=25Plots.mm)
 
-pl4 = single_stacked_heatmap_with_no_detection(path_res1_moz, n_sim; 
+pl4 = single_stacked_heatmap_with_no_detection(path_res1_moz, n_sim;
     vis_kwds=vis_kwds, xlabel=xlabel, ylabel=ylabel, legend=false,
     kwds1...,
 )
 
-pl5 = single_stacked_heatmap_with_no_detection(path_res2_moz, n_sim; 
+pl5 = single_stacked_heatmap_with_no_detection(path_res2_moz, n_sim;
     vis_kwds=vis_kwds, xlabel=xlabel, legend=false,
     kwds1...,
 )
-pl6 = single_stacked_heatmap_with_no_detection(path_res3_moz, n_sim; 
+pl6 = single_stacked_heatmap_with_no_detection(path_res3_moz, n_sim;
     vis_kwds=vis_kwds, xlabel=xlabel, legend=false,
     kwds1...,
 )
@@ -176,7 +176,7 @@ add_annotation1_no_detect!(pl3, "C", "IMP-LBC/ES-POP");  add_annotation1_no_dete
 add_annotation1_no_detect!(pl5, "E", "IMP-AIR/ES-LBC");  add_annotation1!(pl6, "F", "IMP-LBC/ES-LBC")
 
 pls = [pl1, pl2, pl3, pl4, pl5, pl6]
-plot(pls..., layout = @layout[a b c; d e f],  
+plot(pls..., layout = @layout[a b c; d e f],
     fmt=:png, dpi=300, size=(1000,500), bottom_margin=5Plots.mm)
 # -
 
@@ -218,7 +218,7 @@ path_freq_1 = "../dt_tmp_hpc/sens_ES_catchment_20240303_144128963.jld2"
 path_freq_7 = "../dt_tmp_hpc/sens_ES_catchment_20240303_185355250.jld2"
 path_freq_14 = "../dt_tmp_hpc/sens_ES_catchment_20240303_211900139.jld2"
 path_freq_60 = "../dt_tmp_hpc/sens_ES_catchment_20240303_220740874.jld2"
-path_freqs = [path_freq_1, path_freq_7, path_freq_14, path_res1,  
+path_freqs = [path_freq_1, path_freq_7, path_freq_14, path_res1,
     path_freq_60]
 
 tuples = [(R0 = 14, α = 0.05, pc = 0.25, n_sim = 10000, pattern = "population_size", ES_pattern = "ES_population_size", path = "../dt_tmp_hpc/sens_ES_catchment_20240302_052731428.jld2", ES_μ = 3.121, ES_σ = 1.45), (R0 = 14, α = 0.05, pc = 0.25, n_sim = 10000, pattern = "population_size", ES_pattern = "ES_population_size", path = "../dt_tmp_hpc/sens_ES_catchment_20240302_070141277.jld2", ES_μ = 1.917, ES_σ = 1.45), (R0 = 14, α = 0.05, pc = 0.25, n_sim = 10000, pattern = "population_size", ES_pattern = "ES_population_size", path = "../dt_tmp_hpc/sens_ES_catchment_20240302_084258207.jld2", ES_μ = -0.281, ES_σ = 1.45), (R0 = 14, α = 0.05, pc = 0.25, n_sim = 10000, pattern = "population_size", ES_pattern = "ES_population_size", path = "../dt_tmp_hpc/sens_ES_catchment_20240302_100427100.jld2", ES_μ = -1.485, ES_σ = 1.45)]
@@ -229,7 +229,7 @@ path_det_10low = "../dt_tmp_hpc/sens_ES_catchment_20240302_052731428.jld2"
 path_det_3low = "../dt_tmp_hpc/sens_ES_catchment_20240302_070141277.jld2"
 path_det_3high = "../dt_tmp_hpc/sens_ES_catchment_20240302_084258207.jld2"
 path_det_10high = "../dt_tmp_hpc/sens_ES_catchment_20240302_100427100.jld2"
-path_dets = [path_det_10low, path_det_3low, path_res1, 
+path_dets = [path_det_10low, path_det_3low, path_res1,
     path_det_3high, path_det_10high]
 
 include("visualise_fig.jl")
@@ -251,7 +251,7 @@ line5_set_freq = (
 # +
 ### Define summarised plots.
 pl_R0 = plot_sens_adaptor(
-    path_Rs, single_vis_R0!; 
+    path_Rs, single_vis_R0!;
     xlabel="",
     legendtitle="R0",
     line5_set...
@@ -259,20 +259,20 @@ pl_R0 = plot_sens_adaptor(
 plot!(pl_R0, left_margin=5Plots.mm)
 
 pl_α = plot_sens_adaptor(
-    path_αs, single_vis_α!; 
+    path_αs, single_vis_α!;
     legendtitle="α",
     line5_set...
 )
 
 pl_freq = plot_sens_adaptor(
-    path_freqs, single_vis_sampling_freq!; 
+    path_freqs, single_vis_sampling_freq!;
     xlabel="",
     legendtitle="Sampling freq.",
     line5_set_freq...
 )
 
 pl_det = plot_sens_adaptor(
-    path_dets, single_vis_ES_det!; 
+    path_dets, single_vis_ES_det!;
     legend = (0.7, 0.4),
     legendtitle="ES sensitivity",
     labels = [
@@ -285,33 +285,33 @@ nothing
 
 # +
 #####  Individual stacked plot.
-xlabel = "Number of ES-covered patches" 
+xlabel = "Number of ES-covered patches"
 ylabel = "Proportion of detection pattern (%)"
-### R0 
-pl_R0_10= single_stacked_heatmap(path_R0_10; 
+### R0
+pl_R0_10= single_stacked_heatmap(path_R0_10;
     ylabel=ylabel,
     vis_kwds=vis_kwds, kwds...)
 add_annotation2!(pl_R0_10, "R0 = 10")
 plot!(pl_R0_10, left_margin=3Plots.mm)
 
-pl_R0_18= single_stacked_heatmap(path_R0_18; vis_kwds=vis_kwds, 
+pl_R0_18= single_stacked_heatmap(path_R0_18; vis_kwds=vis_kwds,
     x_var="site", xlim=[0, 160], legend=true)
 add_annotation2!(pl_R0_18, "R0 = 18")
 plot!(pl_R0_18, right_margin=25Plots.mm)
 
 ### α
-pl_α_0005 = single_stacked_heatmap(path_α_0005; 
+pl_α_0005 = single_stacked_heatmap(path_α_0005;
     ylabel=ylabel,
     vis_kwds=vis_kwds, xlabel=xlabel, kwds...)
 add_annotation2!(pl_α_0005, "α = 0.005")
 
-pl_α_05 = single_stacked_heatmap(path_α_05; 
+pl_α_05 = single_stacked_heatmap(path_α_05;
     vis_kwds=vis_kwds, xlabel=xlabel, kwds...)
 add_annotation2!(pl_α_05, "α = 0.500")
 plot!(pl_α, left_margin=5Plots.mm)
 
 ### Sampling freq
-pl_freq_1 = single_stacked_heatmap(path_freq_1; 
+pl_freq_1 = single_stacked_heatmap(path_freq_1;
     ylabel=ylabel,
     vis_kwds=vis_kwds, kwds...)
 add_annotation2!(pl_freq_1, "Sampling freq. = 1 day")
@@ -321,13 +321,13 @@ pl_freq_60= single_stacked_heatmap(path_α_05; vis_kwds=vis_kwds,
 add_annotation2!(pl_freq_60, "Sampling freq. = 60 day")
 
 ### ES detection sensitivity
-pl_det_10low = single_stacked_heatmap(path_det_10low; 
-    ylabel=ylabel, 
+pl_det_10low = single_stacked_heatmap(path_det_10low;
+    ylabel=ylabel,
     vis_kwds=vis_kwds, xlabel=xlabel, kwds...)
 #add_annotation2!(pl_det_10low, "10x lower ES sensitivity")
 annotate!(pl_det_10low, (0.05, 0.85), text("10x lower ES sensitivity", :white, :left, :bottom, 11))
 
-pl_det_10high = single_stacked_heatmap(path_det_10high; 
+pl_det_10high = single_stacked_heatmap(path_det_10high;
     vis_kwds=vis_kwds, xlabel=xlabel, kwds...)
 add_annotation2!(pl_det_10high, "10x higehr ES sensitivity")
 nothing
@@ -353,7 +353,7 @@ pl = plot(pls..., layout=layout, size=(1100,250*4),
 display(pl)
 savefig(pl, "../res/Fig3_sens.png")
 
-# # Results for pc. 
+# # Results for pc.
 
 include("visualise_fig.jl")
 
@@ -405,13 +405,12 @@ pls_pop = three_panels_for_pc(path_pcs_pop)
 pls_airport = three_panels_for_pc(path_pcs_airport)
 pls_moz = three_panels_for_pc(path_pcs_moz)
 
-# +
 x_rel = 0.71
 y_rels = [0.20, 0.15, 0.09]
 pos = (x_rel=x_rel, y_rels=y_rels)
-add_three_scatters!(pls_pop, ["A", "B","C"], path_pcs_pop; pos...)
-add_three_scatters!(pls_airport, ["D", "E","F"], path_pcs_airport; pos...)
-add_three_scatters!(pls_moz, ["G", "H","I"], path_pcs_moz; pos...)
+add_three_scatters!(pls_pop, path_pcs_pop; pos...)
+add_three_scatters!(pls_airport, path_pcs_airport; pos...)
+add_three_scatters!(pls_moz, path_pcs_moz; pos...)
 for (i, (letter, pos)) in enumerate(zip(["A","B","C"], [:upper, :upper, :lower]))
     add_annotation3_scenario!(pls_pop[i], letter, "IMP-POP/ES-LBC"; position=pos)
 end
@@ -421,12 +420,10 @@ end
 for (i, (letter, pos)) in enumerate(zip(["G","H","I"], [:lower, :lower, :lower]))
     add_annotation3_scenario!(pls_moz[i], letter, "IMP-LBC/ES-LBC"; position=pos)
 end
-
 plot(pls_pop..., pls_airport..., pls_moz...,
     layout= @layout[a b c; d e f; g h i ],
     fmt=:png, dpi=300, size=(960, 300*3),
 )
-# -
 
 
 

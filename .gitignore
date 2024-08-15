@@ -6,8 +6,7 @@ dt_tmp/*/*.jld2
 !dt_tmp/spatial_params_agg230_moz_sorted.jld2
 
 tmp_fix_results/
-dt_tmp_res/
-dt_tmp_res_big/
+dt_tmp_res/*.jld2
 dt_tmp_res1/
 dt_tmp_fix/
 # dt_tmp_hpc
@@ -18,12 +17,12 @@ data_pop/*.tif
 !data_pop/moz_merged_0_4.tif
 
 *.docx
-doc_MSc_thesis_samples/
-doc_official/
 dt_raster/
 
 # intermediate files
 *.xlsx
+!data/ES_surveillance_information_20240318.xlsx
+
 #*.csv
 *.simg
 *.swp

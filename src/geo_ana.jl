@@ -117,10 +117,6 @@ function create_vaccination_coverage_map(df_geo::DataFrame)
         plot!(pl, r.geometry, color=cm[sc])
     end
 
-    # International airport stars
-    #scatter!(pl, [28.2420, 18.6002, 31.1154], [-26.1282, -33.9705, -29.6087], marker=:star,
-    #    markersize=6, color=["yellow", "lawngreen", "darkslategray1"], label=:none,
-    #    markerstrokewidth=0.1)
     pl2 = heatmap(rand(2, 2), clims=(lower * 100, 100), framestyle=:none,
         c=cgrad(cm), cbar=true, lims=(-1, 0),
         colorbar_title="Effective immunisation proportion (%)",
@@ -268,7 +264,7 @@ function visualise_population(df_mer::DataFrame, col::Symbol,
     for i in 1:n
         x = df_mer[i, :lon]
         y = df_mer[i, :lat]
-        v = df_mer[i, col] #|> Int64
+        v = df_mer[i, col]
         map[At(x), At(y)] = v
     end
     pl = plot()
@@ -276,7 +272,6 @@ function visualise_population(df_mer::DataFrame, col::Symbol,
         xlim=[15, 35], ylim=[-35, -21],
         axis=nothing, border=:none,
         right_margins=9Plots.mm,
-        #colorbar_title="log10(πij)",
         title=title,
     )
     add_zaf_borders!(pl)

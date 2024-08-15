@@ -7,12 +7,6 @@ TODO: Add the citation
 > Toshiaki R. Asakura, Kathleen M. O’Reilly (2024)  ~~~
  -->
 
-
-<!--
-TODO: If the simulation results are successfully uploaded, delete this section.
-Note: The file size for the intermediate files for reproducing figures/tables is very large and we did not upload those files. Therefore, this repository is prepared for sharing the implementation code.
--->
-
 ### Data used in our study
 - Proportion of individuals shedding any amount of virus, [Tebbens RJD 2013](https://doi.org/10.1111/risa.12031):
 `/data/Radboud_2013_PT.csv`
@@ -32,6 +26,8 @@ Note: The file size for the intermediate files for reproducing figures/tables is
 - Boundary data from [geoBoundary](https://www.geoboundaries.org/):
 `/dt_geoBoundaries-*`
 
+- Simulation results to reproduce the figures: `dt_tmp_hpc`
+
 ### How to run the code
 Clone this repository and type `docker compose up` to
 install the Docker image and set up the Docker container.
@@ -42,6 +38,5 @@ It takes around 5-8 hours for each scenario to be completed for `4j` files
 (which means several days are required to complete all the simulations).
 It is recommended that the parallel computing method is implemented. See `slurm_v2` branch for example.
 
-
 ### License
-[MIT](/LICENSE)
+[![License](http://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat)](LICENSE)

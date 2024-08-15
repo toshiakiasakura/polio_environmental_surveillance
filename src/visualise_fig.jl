@@ -34,11 +34,6 @@ function draw_cumulative_incidence(
         plot!([1], [0], color=c, label=" "^3 * label)
     end
 
-    #scatter!([1], [0], ms=0, mc=:white, label=" ")
-    #scatter!([1], [0], ms=0, mc=:white, label="Detect. type")
-    #plot!([1], [0], color=:black, label="   ES")
-    #plot!([1], [0], color=:black, ls=:dot, label="   AFP surv.")
-
     return pl
 end
 
@@ -111,15 +106,6 @@ function create_lead_time_category(df_res::DataFrame)::Tuple{DataFrame,Vector}
     df_res.lead_time = df_res.t_AFP .- df_res.t_ES
     df_fil = filter(x -> !isnan.(x.lead_time), df_res)
 
-    # Use "extend" option for cut, and assin Inf as "ES only".
-    #bin_edges = [-Inf, -10_000, -150, -100, -50, 0, 50, 100, 150, 10_000, Inf]
-    #bin_labels = ["AFP surv. only",
-    #    "<-150 LT", "-150 ~ -101 LT", "-100 ~ -49 LT", "-50 ~ -1 LT",
-    #    "0 ~ 49 LT", "50 ~ 99 LT",
-    #    "100 ~ 149 LT", ">=150 LT",
-    #    "ES only"]
-    #bin_edges = [Inf, 10_000, 60, 0, -60, -10_000, -Inf]
-    #bin_labels = ["ES only", "≥60 LT", "0 ~ 59 LT", "-60 ~ -1 LT", "<-60 LT", "AFP only"]
     bin_edges = [-Inf, -10_000, -60, 0, 60, 10_000, Inf]
     bin_labels = ["AFP only", "<-60 LT", "-60 ~ -1 LT", "0 ~ 59 LT", "≥60 LT", "ES only"]
     df_fil.lead_time_category = cut(df_fil.lead_time, bin_edges, extend=true, labels=bin_labels)
@@ -168,11 +154,9 @@ function proportion_each_cate_by_group(
     grp_p = sort(grp_p, str_col)
     grp_50 = sort(grp_50, str_col)
     df_ind_per = DataFrame(str_col => df_fil[:, str_col] |> unique)
-    #grp_p = leftjoin(grp_p, df_ind_per, on=col)
     grp_p_unstack = unstack(grp_p, str_col, :lead_time_category, :prop_cate)
     # Reorder the heatmap
     order = bin_labels[end:-1:begin]
-    #grp_50[:, :prop_50] .= grp_50[:, :prop_50]
     y = @pipe grp_p_unstack[:, order] |> Matrix .|> coalesce(_, 0.0)
     return (y, grp_50)
 end
@@ -189,7 +173,6 @@ function visualise_heatmap_include_only(x, y, grp_50, bin_labels)
     plot!(x, grp_50[:, :prop_50], color="black", label=nothing, lw=1.5,
         marker=:circle, markersize=3, markerstrokewidth=0,
     )
-    #ls=:dashdot)
     pl
 end
 
