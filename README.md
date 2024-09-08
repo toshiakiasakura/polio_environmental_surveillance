@@ -1,11 +1,7 @@
 # Assessing early detection ability through spatial arrangements in environmental surveillance for poliovirus: a simulation-based study
 
-This repository contains the data and code for our paper.
-<!--
 This repository contains the data and code for our paper:
-TODO: Add the citation
-> Toshiaki R. Asakura, Kathleen M. O’Reilly (2024)  ~~~
- -->
+> Asakura, T. R., & O'Reilly, K. M. (2024). Assessing early detection ability through spatial arrangements in environmental surveillance for poliovirus: a simulation-based study. medRxiv, 2024-08.
 
 ### Data used in our study
 - Proportion of individuals shedding any amount of virus, [Tebbens RJD 2013](https://doi.org/10.1111/risa.12031):
