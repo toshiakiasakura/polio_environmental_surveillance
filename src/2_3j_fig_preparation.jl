@@ -140,18 +140,23 @@ include("geo_ana.jl")
 
 pl_moz = plot()
 plot!(pl_moz, zaf_map,
-    axis=nothing, border=:none,
     title="",
-    xlim=[15,45], ylim=[-35, -10],
+    xlim=[15,35], ylim=[-35, -21],
+    axis=nothing, border=:none,
+    left_margin=-10Plots.mm,
+    right_margin=-30Plots.mm,
+    top_margin = 0Plots.mm,
+    fmt=:png, dpi=200,
 )
-add_zaf_ADM0_borders!(pl_moz)
+#add_zaf_ADM0_borders!(pl_moz)
 add_moz_borders!(pl_moz)
+add_zaf_borders!(pl_moz)
 scatter!(pl_moz, 
-    [24, 33, 40, 33], 
-    [-30, -15, -13, -22], 
+    [27, 34.0, 33, 32.7], 
+    [-28, -24.5, -23.5, -22], 
     label=false, color=cm[4],
     markershape=:rect,
-    markersize=[12, 8, 8, 8],
+    markersize=[12, 7, 7, 7],
 )
 nothing
 
