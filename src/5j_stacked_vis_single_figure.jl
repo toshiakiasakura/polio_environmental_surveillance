@@ -186,15 +186,15 @@ include("visualise_fig.jl")
 
 # ### R0
 
-tuples = [(R0 = 10, α = 0.05, pc = 0.25, n_sim = 10000, pattern = "population_size", ES_pattern = "ES_population_size", path = "../dt_tmp_hpc/sens_ES_catchment_20240302_025116224.jld2"), (R0 = 12, α = 0.05, pc = 0.25, n_sim = 10000, pattern = "population_size", ES_pattern = "ES_population_size", path = "../dt_tmp_hpc/sens_ES_catchment_20240302_082109968.jld2"), (R0 = 16, α = 0.05, pc = 0.25, n_sim = 10000, pattern = "population_size", ES_pattern = "ES_population_size", path = "../dt_tmp_hpc/sens_ES_catchment_20240302_162056133.jld2"), (R0 = 18, α = 0.05, pc = 0.25, n_sim = 10000, pattern = "population_size", ES_pattern = "ES_population_size", path = "../dt_tmp_hpc/sens_ES_catchment_20240303_012857453.jld2")]
+tuples = [(R0 = 8, α = 0.05, pc = 0.25, n_sim = 10000, pattern = "population_size", ES_pattern = "ES_population_size", path = "../dt_tmp_res/sens_ES_catchment_20250325_045745223.jld2"), (R0 = 10, α = 0.05, pc = 0.25, n_sim = 10000, pattern = "population_size", ES_pattern = "ES_population_size", path = "../dt_tmp_hpc/sens_ES_catchment_20240302_025116224.jld2"), (R0 = 12, α = 0.05, pc = 0.25, n_sim = 10000, pattern = "population_size", ES_pattern = "ES_population_size", path = "../dt_tmp_hpc/sens_ES_catchment_20240302_082109968.jld2"), (R0 = 16, α = 0.05, pc = 0.25, n_sim = 10000, pattern = "population_size", ES_pattern = "ES_population_size", path = "../dt_tmp_hpc/sens_ES_catchment_20240302_162056133.jld2")]
 for t in tuples
     println("path_R0_$(t.R0) = \"$(t.path)\"")
 end
+path_R0_8 = "../dt_tmp_res/sens_ES_catchment_20250325_045745223.jld2"
 path_R0_10 = "../dt_tmp_hpc/sens_ES_catchment_20240302_025116224.jld2"
 path_R0_12 = "../dt_tmp_hpc/sens_ES_catchment_20240302_082109968.jld2"
 path_R0_16 = "../dt_tmp_hpc/sens_ES_catchment_20240302_162056133.jld2"
-path_R0_18 = "../dt_tmp_hpc/sens_ES_catchment_20240303_012857453.jld2"
-path_Rs = [path_R0_10, path_R0_12, path_res1, path_R0_16, path_R0_18]
+path_Rs = [path_R0_8, path_R0_10, path_R0_12, path_res1, path_R0_16]
 
 # ## α
 
@@ -254,7 +254,7 @@ pl_R0 = plot_sens_adaptor(
     path_Rs, single_vis_R0!;
     xlabel="",
     legendtitle="R0",
-    line5_set...
+    line5_set_freq...
 )
 plot!(pl_R0, left_margin=5Plots.mm)
 
@@ -288,16 +288,16 @@ nothing
 xlabel = "Number of ES-covered patches"
 ylabel = "Proportion of detection pattern (%)"
 ### R0
-pl_R0_10= single_stacked_heatmap(path_R0_10;
+pl_R0_8= single_stacked_heatmap(path_R0_8;
     ylabel=ylabel,
     vis_kwds=vis_kwds, kwds...)
-add_annotation2!(pl_R0_10, "R0 = 10")
-plot!(pl_R0_10, left_margin=3Plots.mm)
+add_annotation2!(pl_R0_8, "R0 = 8")
+plot!(pl_R0_8, left_margin=3Plots.mm)
 
-pl_R0_18= single_stacked_heatmap(path_R0_18; vis_kwds=vis_kwds,
+pl_R0_16= single_stacked_heatmap(path_R0_16; vis_kwds=vis_kwds,
     x_var="site", xlim=[0, 160], legend=true)
-add_annotation2!(pl_R0_18, "R0 = 18")
-plot!(pl_R0_18, right_margin=25Plots.mm)
+add_annotation2!(pl_R0_16, "R0 = 16")
+plot!(pl_R0_16, right_margin=25Plots.mm)
 
 ### α
 pl_α_0005 = single_stacked_heatmap(path_α_0005;
@@ -335,13 +335,13 @@ nothing
 
 plot!(pl_R0, top_margin=10Plots.mm)
 annotate!(pl_R0, (0.05, 1.00), text("A", :black, :left, :bottom, 24))
-annotate!(pl_R0_10, (0.05, 1.00), text("B", :black, :left, :bottom, 24))
-annotate!(pl_R0_18, (0.05, 1.00), text("C", :black, :left, :bottom, 24))
+annotate!(pl_R0_8, (0.05, 1.00), text("B", :black, :left, :bottom, 24))
+annotate!(pl_R0_16, (0.05, 1.00), text("C", :black, :left, :bottom, 24))
 nothing
 
 ### Synthesize above all.
 pls = [
-    pl_R0, pl_R0_10, pl_R0_18,
+    pl_R0, pl_R0_8, pl_R0_16,
     pl_α, pl_α_0005, pl_α_05,
     pl_freq, pl_freq_1, pl_freq_60,
     pl_det, pl_det_10low, pl_det_10high,

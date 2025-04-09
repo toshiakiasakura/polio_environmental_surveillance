@@ -111,6 +111,8 @@ scatter!(pl, data_x, data_y)
 y = cdf.(lognorm, data_x)
 scatter!(pl, data_x, y)
 
+
+
 pl = plot(fmt=:png, dpi=150)
 res = fit_lognorm(data_x, data_y, [1.0, 5.0])
 lognorm = LogNormal(res[1], res[2])
@@ -122,6 +124,7 @@ plot(pl, x, y, lw=2,
     label="", 
     xlabelfontsize=18, ylabelfontsize=18,
 )
+println("50% chance of detecting whne infectious indinviduals per 100,00 are: ", quantile(lognorm, 0.5))
 
 # +
 pl = plot(fmt=:png, dpi=250)

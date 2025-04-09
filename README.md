@@ -35,4 +35,8 @@ It takes around 5-8 hours for each scenario to be completed for `4j` files
 It is recommended that the parallel computing method is implemented. See `slurm_v2` branch for example.
 
 ### License
-[![License](http://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat)](LICENSE)
+This work is under [![License](http://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat)](LICENSE)
+
+geoBoundary is from "Runfola, D. et al. (2020) geoBoundaries: A global database of political administrative boundaries. PLoS ONE 15(4): e0231866. https://doi.org/10.1371/journal.pone.0231866", under [![License: CC BY 4.0](https://img.shields.io/badge/License-CC_BY_4.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/).
+
+[WorldPop](https://www.worldpop.org/) is under [![License: CC BY 4.0](https://img.shields.io/badge/License-CC_BY_4.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/).

@@ -62,6 +62,12 @@ display(pl_w)
 
 include("utils.jl")
 
+for R0 in [8, 14, 16]
+    Reff = R0.* (1 .- df_pop[:, :EVP])
+    Reff_0 = sum(Reff .* normalize(df_pop[:, :value], 1))
+    println("Averaged Reff_0 = $(Reff_0) when R0=$(R0)")
+end
+
 n_obs = 10
 R0 = 14
 # Calculate the effective reproduction number for each grid.
@@ -82,7 +88,6 @@ plot!(p_twin, R, p_out, color="red", ylim=[0,1],
     legend=(0.7,0.5),
     label="",#label="More than 5 cases",
 )
-
 # -
 
 # ## Visualise the relationship between the early detection probability and weighted minimum distance to ES-covered patches
