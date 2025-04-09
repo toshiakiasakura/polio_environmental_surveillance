@@ -164,10 +164,10 @@ pars_freq_60 = SEIRModelParams(ES_n_freq=60 ; base_kwds...)
 pars_freq_lis = [pars_freq_1, pars_base, pars_freq_60]
 
 # R0
-pars_R0_10 = SEIRModelParams(R0=10; base_kwds...)
-pars_R0_18 = SEIRModelParams(R0=18; base_kwds...)
+pars_R0_8 = SEIRModelParams(R0=8; base_kwds...)
+pars_R0_16 = SEIRModelParams(R0=16; base_kwds...)
 
-pars_R0_lis = [pars_R0_10, pars_base, pars_R0_18]
+pars_R0_lis = [pars_R0_8, pars_base, pars_R0_16]
 nothing
 # -
 
@@ -176,7 +176,7 @@ nothing
 # +
 # Summarise the figures
 pl_R0 = draw_cumulative_incidence(pars_R0_lis, colors3;
-    legendtitle="R0", labels=["10", "14", "18"],
+    legendtitle="R0", labels=["8", "14", "16"],
     xlabel="Day",
     legend=:topright,
 )
@@ -228,7 +228,7 @@ include("visualise_fig.jl")
 
 # +
 pl_bar_R0, pl_grpbar_R0 = plot_prop_any_and_prop_pattern(
-    pars_R0_lis, ["10", "14", "18"], "R0")
+    pars_R0_lis, ["8", "14", "16"], "R0")
 pl_bar_freq, pl_grpbar_freq = plot_prop_any_and_prop_pattern(
     pars_freq_lis, ["1 day", "30 day", "60 day"], "Sampling freq.")
 pl_bar_sens, pl_grpbar_sens = plot_prop_any_and_prop_pattern(
